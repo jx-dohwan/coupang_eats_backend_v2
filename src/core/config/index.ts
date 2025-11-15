@@ -10,6 +10,7 @@ export interface AppConfig {
     BASE_URL: string;
     NODE_ENV: string; 
     ENV: Env;
+    NAME: string;
 }
 
 export interface DBConfig {
