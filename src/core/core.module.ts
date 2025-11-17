@@ -5,9 +5,11 @@ import { ApiResponseInterceptor } from './interceptor/apiResponse.interceptor';
 import { ErrorInterceptor } from './interceptor/error.interceptor';
 import { TypeOrmModule } from './database/typeorm/typeorm.module';
 import { LoggerModule } from './logger/logger.module';
+import { CacheModule } from './cache/cache.module';
+
 
 // CoreModule이 공통으로 관리할 모듈 목록(설정, 로거)
-const modules = [ConfigModule, LoggerModule];
+const modules = [ConfigModule, LoggerModule, CacheModule];
 
 // CoreModule이 제공할 프로바이더 목록 (현재는 비어 있음))
 const providers: ClassProvider[] = [];
