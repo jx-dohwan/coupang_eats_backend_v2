@@ -6,6 +6,7 @@ export const configurations = (): Configurations => {
 
     return {
         APP: {
+            NAME: process.env.NAME || '',
             BASE_URL: process.env.BASE_URL || '',
             PORT: process.env.PORT || 3000,
             NODE_ENV: process.env.NODE_ENV || 'local',

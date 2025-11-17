@@ -5,8 +5,8 @@ import {
   TypeOrmModuleOptions,
 } from '@nestjs/typeorm';
 import * as path from 'path';
-import { Env } from 'src/core/config';
-import { MoinConfigService } from 'src/core/config/config.service';
+import { Env } from '../../config'; 
+import { MoinConfigService } from '../../config/config.service'; 
 import { DataSourceOptions, DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import {

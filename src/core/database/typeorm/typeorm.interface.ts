@@ -1,4 +1,4 @@
-import { Union } from 'src/common/type/common.interface';
+import { Union } from '../../../common/type/common.interface'; 
 import { FindOptionsRelations } from 'typeorm';
 
 // 타입 T에서 대문자로 시작하는 속성을 제거한다. (주로 관계(relation)속성 제거용)
