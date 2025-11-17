@@ -4,48 +4,54 @@ import { RedisClientKey } from './cache.interface';
 
 @Injectable()
 export class CacheService {
-    /**
-     * 생성자에서 의존성 주입(DI)을 받는다.
-     * @param redis 
-     * Nest.js에게 'Redis' 타입이 아닌 'RedisClientKey' 토큰으로 등록된 프로바이더(redisConnect)를 this.redis 매개변수에 주입해달라고 요청
-     */
+  /**
+   * 생성자에서 @Inject(RedisClientKey)를 사용해 Redis 클라이언트를 주입받습니다.
+   */
   constructor(@Inject(RedisClientKey) private readonly redis: Redis) {}
 
   /**
-   * [비공개 헬퍼] 키에 만료 시간(TTL)을 설정한다.
-   * @param key redis 키
-   * @param ttl 만료 시간(초). 기본값 0
-   * @returns 
+   * [비공개 헬퍼] 키에 만료 시간(TTL)을 설정합니다.
+   * @param key Redis 키
+   * @param ttl 만료 시간(초). 0이면 즉시 만료될 수 있습니다.
    */
   private async setTTL(key: string, ttl: number = 0) {
-    // ioredis 클라이언트의 'expire'명령어를 실행
     return this.redis.expire(key, ttl);
   }
 
   /**
-   * Redis에서 키(Key)에 해당하는 값을 가져온다.
-   * @param key redis 키
-   * @returns  키가 존재하면 문자열 값을, 없으면 null을 반환한다.
+   * Redis에서 키에 해당하는 값을 가져옵니다.
+   * @param key Redis 키
+   * @returns 값이 있으면 JSON 파싱(객체 복원) 후 반환, 없으면 null 반환
    */
   public async get(key: string): Promise<string | null> {
-    return this.redis.get(key);
+    const data = await this.redis.get(key);
+    if (data) {
+      // Redis에는 문자열로 저장되므로, 원래 객체 형태로 복원합니다.
+      return JSON.parse(data);
+    }
+    return null;
   }
 
   /**
-   * redis에 키-값을 저장하고, 선택적으로 만료 시간(TTL)을 설정한다.
-   * @param key Redis zl
-   * @param value value 저정할 값(자동으로 문자열화도니다.)
-   * @param ttl 만료 시간(초) (선택사항)
+   * Redis에 키-값을 저장하고, 선택적으로 만료 시간을 설정합니다.
+   * @param key Redis 키
+   * @param value 저장할 값 (객체 등)
+   * @param ttl 만료 시간(초)
    */
   public async set(key: string, value: any, ttl?: number) {
-    // 명령어로 키-값을 저장
-    await this.redis.set(key, value);
-    // ttl이 undefeind인 경우, setTTL의 기본값 0이 사용된다.
-    await this.setTTL(key, ttl);
+    // 객체(value)를 Redis에 저장하기 위해 문자열로 직렬화합니다.
+    const serializedValue = JSON.stringify(value);
+
+    await this.redis.set(key, serializedValue);
+
+    // ttl이 제공된 경우에만 만료 시간을 설정합니다.
+    if (ttl) {
+      await this.setTTL(key, ttl);
+    }
   }
 
   /**
-   * Redis에서 특정 키를 삭제한다.
+   * Redis에서 특정 키를 삭제합니다. (데이터 업데이트 시 캐시 무효화용)
    */
   public async del(key: string) {
     await this.redis.del(key);
