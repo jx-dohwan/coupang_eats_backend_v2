@@ -6,12 +6,18 @@ import {
   FindOneOptions,
   FindOptionsOrder,
   FindOptionsRelations,
+  FindOptionsSelect,
   FindOptionsWhere,
+  In,
   QueryRunner,
   Repository,
 } from 'typeorm';
 import { UuidEntity } from './base.entity';
 import { OmitNotJoinedProps, OmitUppercaseProps } from './typeorm.interface';
+import { PaginationRequest } from '../../../common/pagination/pagination.request';
+import { Mutable } from '../../../common/type/common.interface';
+import { PaginationResponse } from '../../../common/pagination/pagination.response';
+import { PaginationBuilder } from '../../../common/pagination/pagination.builder';
 
 /**
  * [범용 TypeORM 레포지토리]
@@ -22,7 +28,7 @@ import { OmitNotJoinedProps, OmitUppercaseProps } from './typeorm.interface';
 export class GenericTypeOrmRepository<
   T extends UuidEntity,
 > extends Repository<T> {
-    // 커스텀 레포지토리를 위한 기본 생성자
+  // 커스텀 레포지토리를 위한 기본 생성자
   constructor(
     target: EntityTarget<T>,
     manager: EntityManager,
@@ -31,14 +37,40 @@ export class GenericTypeOrmRepository<
     super(target, manager, queryRunner);
   }
 
+  async paginate(
+    pagination: PaginationRequest,
+    findOptionsWhere?:
+      | FindOptionsWhere<Mutable<T>>
+      | FindOptionsWhere<Mutable<T>>[],
+    orderOptions?: FindOptionsOrder<T>,
+    select?: FindOptionsSelect<T>,
+  ): Promise<PaginationResponse<OmitUppercaseProps<T>>> {
+    const { limit, page } = pagination;
+    const options: FindManyOptions<T> = {
+      take: limit,
+      skip: (page - 1) * limit,
+      where: findOptionsWhere as FindOptionsWhere<T>[],
+      order: orderOptions,
+      select,
+    };
+    const [data, total] = await this.findAndCount(options);
+
+    return new PaginationBuilder<T>()
+      .setData(data)
+      .setPage(page)
+      .setLimit(limit)
+      .setTotalCount(total)
+      .build();
+  }
+
   /**
-   * 
-   * @param filters 
-   * @param findOptionsRelations 
-   * @param orderOptions 
-   * @param withDeleted 
-   * @returns 
-   * 
+   *
+   * @param filters
+   * @param findOptionsRelations
+   * @param orderOptions
+   * @param withDeleted
+   * @returns
+   *
    * [관계 포함 + Throw] 1개 조회 (Type-Safe, 404 예외)
    * 'relations' 옵션에 명시된 관계만 포함하며, 결과가 없으면 404 예외를 던진다.
    */
@@ -59,12 +91,12 @@ export class GenericTypeOrmRepository<
   }
 
   /**
-   * 
-   * @param filters 
-   * @param findOptionsRelations 
-   * @param orderOptions 
-   * @param withDeleted 
-   * @returns 
+   *
+   * @param filters
+   * @param findOptionsRelations
+   * @param orderOptions
+   * @param withDeleted
+   * @returns
    * [관계 포함 + Throw] 1개 조회(Type-Safe, 404 예외)
    * 'relations' 옵션에 명시된 관계만 포함하며, 결과가 없으면 404예외를 던진다.
    */
@@ -90,13 +122,13 @@ export class GenericTypeOrmRepository<
   }
 
   /**
-   * 
-   * @param filters 
-   * @param findOptionsRelations 
-   * @param orderOptions 
-   * @param withDeleted 
-   * @returns 
-   * 
+   *
+   * @param filters
+   * @param findOptionsRelations
+   * @param orderOptions
+   * @param withDeleted
+   * @returns
+   *
    * [관계 포함] 여러 개 조회 (Type-Safe)
    * 'relations'옵션에 명시된 관계만 포함하는 정확한 타입의 배열을 반환한다.
    */
@@ -119,11 +151,11 @@ export class GenericTypeOrmRepository<
   }
 
   /**
-   * 
-   * @param filters 
-   * @param orderOptions 
-   * @returns 
-   * 
+   *
+   * @param filters
+   * @param orderOptions
+   * @returns
+   *
    * [관계 제외] 1개 조회 (null 허용)
    * 관계(relation)속성이 타입에서 제거된 엔티티를 반환한다.
    */
@@ -141,9 +173,9 @@ export class GenericTypeOrmRepository<
   }
 
   /**
-   * 
-   * @returns 
-   * 
+   *
+   * @returns
+   *
    * [관계 제외] 모든 엔티티 조회
    * 관계 속성이 타입에서 제거된 엔티티 배열을 반환한다.
    */
@@ -152,12 +184,11 @@ export class GenericTypeOrmRepository<
     return res;
   }
 
-
   /**
-   * 
-   * @param filters 
-   * @param orderOptions 
-   * @returns 
+   *
+   * @param filters
+   * @param orderOptions
+   * @returns
    * [관계 제외] 조건에 맞는 여러 엔티티 조회
    * 관계 속성이 타입에서 제거된 엔티티 배열을 반환한다.
    */
@@ -174,10 +205,10 @@ export class GenericTypeOrmRepository<
   }
 
   /**
-   * 
-   * @param filters 
-   * @param orderOptions 
-   * @returns 
+   *
+   * @param filters
+   * @param orderOptions
+   * @returns
    * [관계 제외 + Throw] 1개 조회 (상세 404 예외)
    * 결과가 없으면 어떤 조건으로 실패했는지 상세한 404 예외를 던진다.
    */
@@ -192,7 +223,7 @@ export class GenericTypeOrmRepository<
     const res = await this.findOne(findOption);
 
     if (!res) {
-        // 조회 실패 시 상세 에러 메시지 생성
+      // 조회 실패 시 상세 에러 메시지 생성
       const msgList: string[] = [];
       for (const [key, value] of Object.entries(filters)) {
         msgList.push(`${key}: ${value}`);
@@ -202,11 +233,10 @@ export class GenericTypeOrmRepository<
     return res;
   }
 
-
   /**
-   * 
-   * @param id 
-   * @returns 
+   *
+   * @param id
+   * @returns
    * [관계 제외 + Throw] ID로 1개 조회(404예외)
    * ID로 조회하며, 결과가 없으면 404 예외를 던진다.
    */
@@ -217,6 +247,12 @@ export class GenericTypeOrmRepository<
     if (!res) {
       throw new NotFoundException(`don't exist ${id}`);
     }
+    return res;
+  }
+
+  async findByIds(ids: string[]) {
+    const findOption: FindManyOptions = { where: { id: In(ids) } };
+    const res = await this.find(findOption);
     return res;
   }
 
