@@ -37,7 +37,7 @@ import { Env } from '../config';
               format: winston.format.combine(
                 // 타임스탬프 추가
                 winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-                // nest-winston 유틸리티: Nest.js 기본 로거처럼 색상과 형식을 예쁘게
+                // nest-winston 유틸리티: Nest.js 기근데본 로거처럼 색상과 형식을 예쁘게
                 utilities.format.nestLike(NAME, {
                   prettyPrint: true,
                   colors: true,
