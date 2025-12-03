@@ -8,13 +8,40 @@ import {
 } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class ErrorInterceptor implements NestInterceptor {
+  constructor(private readonly logger: LoggerService) {}
+  
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       // catchError()는 스트림에서 오류가 발생했을 때 실행된다.
       catchError((err) => {
+        const req = context.switchToHttp().getRequest();
+        const {method, url, body, query, params} = req;
+        const headers = req.headers;
+        const requestId = headers['x-request-id']; // 미들웨어에서 만든 ㅑㅇ
+
+        // 상태 코드 미리 계산(로그에 남기기 위함)
+        const statusCode = err instanceof HttpException ? err.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+
+        // LoggerService를 사용해 에러 로그 기록(콘솔 -> AWS CloudWatch)
+        this.logger.error(
+          'Exception', // 로그 컨텍스트 이름 
+          {
+            method,
+            url,
+            requestId,
+            statusCode,
+            clientIp: req.ip,
+            errorName: err.name, // 에러 종류
+            stack: err.stack, // 에러 발생 위치
+            body: JSON.stringify(body) // 요청 데이터 확인용
+          },
+          `Error: ${err.message}`, // 로그 메시지
+        )
+
         // 기본 오류 응답 객체
         const returnObj = {
           success: false,

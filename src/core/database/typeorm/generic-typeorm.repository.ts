@@ -37,6 +37,14 @@ export class GenericTypeOrmRepository<
     super(target, manager, queryRunner);
   }
 
+  /**
+   * 공용 페이지네이션 헬퍼 메서드
+   * @param pagination page, limit 정보를 담은 요청 DTO
+   * @param findOptionsWhere TypeORM의 'where' 검색 조건 (Mutable<T>는 readonly 엔티티 타입에러 방지용)
+   * @param orderOptions 정렬 조건
+   * @param select 조회할 컬럼 지정
+   * @returns  list와 total 등이 포함된 표준 응답 객체
+   */
   async paginate(
     pagination: PaginationRequest,
     findOptionsWhere?:
@@ -45,16 +53,23 @@ export class GenericTypeOrmRepository<
     orderOptions?: FindOptionsOrder<T>,
     select?: FindOptionsSelect<T>,
   ): Promise<PaginationResponse<OmitUppercaseProps<T>>> {
+    // 1. 요청된 DTO에서 page, limit 추출
     const { limit, page } = pagination;
+
+    // 2. TypeORM의 findMany 옵션 객체 조립
     const options: FindManyOptions<T> = {
-      take: limit,
-      skip: (page - 1) * limit,
-      where: findOptionsWhere as FindOptionsWhere<T>[],
+      take: limit, // take: 가져올 개수(limit)
+      skip: (page - 1) * limit, // skip: 건너뛸 개수 (offset)
+      // (as...) : Mutable<T> 타입을 TypeORM이 인식하는 Where 타입으로 강제 변환
+      where: findOptionsWhere as FindOptionsWhere<T>[], 
       order: orderOptions,
       select,
     };
+
+    // 3. (핵심) findAndCount: 데이터 목록(data)과 전체 개수(total)를 한 번에 조회
     const [data, total] = await this.findAndCount(options);
 
+    // 4. PaginationBuilder를 사용해 표준 응답 객체 생성 및 반환
     return new PaginationBuilder<T>()
       .setData(data)
       .setPage(page)

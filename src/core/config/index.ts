@@ -26,8 +26,16 @@ export interface DBConfig {
   DB_PORT: number | string;
 }
 
+export interface JwtConfig {
+  JWT_ACCESS_SECRET: string;
+  JWT_REFRESH_SECRET: string;
+  JWT_ACCESS_EXPIRATION: string;
+  JWT_REFRESH_EXPIRATION: string;
+}
+
 export interface Configurations {
   APP: AppConfig;
   DB: DBConfig;
   REDIS: RedisConfig;
+  JWT: JwtConfig;
 }

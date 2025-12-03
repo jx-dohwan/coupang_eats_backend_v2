@@ -12,6 +12,7 @@ type MutableObject<T> = {
 };
 /**
  * 타입 T를 받아, T와 T의 모든 중첩 속성/요소에서 'readonly'한정자를 재귀적으로 제거한 '완전히 변경 가능한' 새 타입을 반환한다.
+ * 즉, readonly 읽기 전용 속성을 가진 객체나 배열을 모든 중첩 속성까지 포함하여 변경가능 하도록 타입을 변환시켜주는 역할을 한다.
  */
 export type Mutable<T> =
   T extends Array<infer U>
