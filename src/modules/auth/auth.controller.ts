@@ -15,6 +15,7 @@ import { RefreshBody } from './dto/request/refresh.body';
 import { CurrentUser } from '../../core/decorator/currentUser.decorator';
 import { ExtractJwt } from 'passport-jwt';
 import { Public } from '../../core/decorator/public.decorator';
+import { RefreshTokenGuard } from '../../core/guard/refreshToken.guard';
 
 // 'auth' 경로로 들어오는 요청을 담당하는 컨트롤로 (예: /auth/sign-up)
 @Controller('auth')
@@ -44,6 +45,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @UseGuards(RefreshTokenGuard)
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() body: RefreshBody) { // Access Token이 만료되었을때, 가지고 있는 Refresh Token을 Body로 보내 새 토큰을 받는다.
     return this.authService.refreshTokens(body.refreshToken);

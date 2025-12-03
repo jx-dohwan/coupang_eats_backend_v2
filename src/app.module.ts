@@ -4,7 +4,8 @@ import { AppService } from './app.service';
 import { UserModule } from './modules/user/user.module';
 import { CoreModule } from './core/core.module';
 import { RequestLoggerMiddleware } from './core/middleware/requestLogger.middleware';
-const applicationModules = [UserModule];
+import { AuthModule } from './modules/auth/auth.module';
+const applicationModules = [UserModule, AuthModule];
 
 @Module({
   imports: [CoreModule, ...applicationModules],
