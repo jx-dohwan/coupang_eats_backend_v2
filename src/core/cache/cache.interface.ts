@@ -7,6 +7,8 @@ export const RedisClientKey = Symbol('RedisClientKey');
 
 // 캐시 키(prefix)를 상수로 관리하여 오타 방지
 export const CacheKeys = {
+  RefreshToken: 'refresh-token/',
+  TokenBlacklist: 'token-blacklist/',
   User: 'user/', // 사용자 관련 캐시 키 접두사
 } as const;
 export type CacheKeys = Union<typeof CacheKeys>;

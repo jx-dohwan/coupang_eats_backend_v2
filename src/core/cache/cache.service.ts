@@ -38,7 +38,7 @@ export class CacheService {
    * @param value 저장할 값 (객체 등)
    * @param ttl 만료 시간(초)
    */
-  public async set(key: string, value: string | Buffer | number, ttl?: number) {
+  public async set(key: string, value: string | number | boolean, ttl?: number) {
     // 객체(value)를 Redis에 저장하기 위해 문자열로 직렬화합니다.
     const serializedValue = JSON.stringify(value);
 
