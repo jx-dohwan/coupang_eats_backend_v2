@@ -6,17 +6,17 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { JwtService } from '../jwt/jwt.service';
 import { LoggerService } from '../logger/logger.service';
 import { IS_PUBLIC_KEY } from '../decorator/public.decorator';
 import { isRFC3339 } from 'class-validator';
+import { RequestContextService } from '../cls/cls.service';
 
 @Injectable()
 export class AccessTokenGuard extends AuthGuard('jwt-access') {
   constructor(
-    private reflector: Reflector, // 메타데이터(데코레이터 정보) 읽기용
-    private jwtService: JwtService,
-    private loggerService: LoggerService,
+    private readonly reflector: Reflector,
+    private readonly loggerService: LoggerService,
+    private readonly requestContextService: RequestContextService,
   ) {
     super();
   }
@@ -49,11 +49,21 @@ export class AccessTokenGuard extends AuthGuard('jwt-access') {
     if (err) throw new UnauthorizedException(err.message);
     if (!user) throw new UnauthorizedException('invalid token');
 
+    // CLS에서 Request ID 가져오기
+    const requestId = this.requestContextService.getRequestId();
+
+
     // 성공 로그 남기기
     this.loggerService.info(
       this.handleRequest.name,
+      {
+        requestId,
+        userId: user.id
+      },
       `AccessTokenGuard Success: userId: ${user.id}`,
     );
+
+
     return user;
   }
 }
