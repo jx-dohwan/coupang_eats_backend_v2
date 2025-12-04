@@ -23,3 +23,8 @@ export interface DecodedToken {
   payload: JwtPayload;
   expired: boolean;
 }
+
+export interface RefreshTokenData {
+  payload: JwtPayload;
+  refreshToken: string;
+}
