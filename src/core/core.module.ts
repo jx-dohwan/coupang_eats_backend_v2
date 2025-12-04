@@ -5,9 +5,8 @@ import {
   Module,
 } from '@nestjs/common';
 import { ConfigModule } from './config/config.module';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiResponseInterceptor } from './interceptor/apiResponse.interceptor';
-import { ErrorInterceptor } from './interceptor/error.interceptor';
 import { TypeOrmModule } from './database/typeorm/typeorm.module';
 import { LoggerModule } from './logger/logger.module';
 import { CacheModule } from './cache/cache.module';
@@ -17,6 +16,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ClsModule } from './cls/cls.module';
 import { ClsMiddleware } from 'nestjs-cls';
 import { RequestLoggerMiddleware } from './middleware/requestLogger.middleware';
+import { ErrorFilter } from './filter/error.filter';
 
 // CoreModule이 공통으로 관리할 모듈 목록(설정, 로거)
 const modules = [ConfigModule, LoggerModule, CacheModule, JwtModule, ClsModule];
@@ -28,8 +28,6 @@ const providers: ClassProvider[] = [];
 const interceptor: ClassProvider[] = [
   // 1. API 응답 형식을  통일된 구조로 래핑하는 인터셉터
   { provide: APP_INTERCEPTOR, useClass: ApiResponseInterceptor },
-  // 2. 에러 발생 시 응답 형식을 통일된 구조로 래핑하는 인터셉터
-  { provide: APP_INTERCEPTOR, useClass: ErrorInterceptor },
 ];
 
 const guards: ClassProvider[] = [
@@ -43,9 +41,10 @@ const guards: ClassProvider[] = [
   },
 ];
 
-// 애플리케이션 전역으로 적용할 예외 필터 목록(현재는 비어 있음)
-const filters: ClassProvider[] = [];
-
+// 애플리케이션 전역으로 적용할 예외 필터 목록
+const filters: ClassProvider[] = [
+    { provide: APP_FILTER, useClass: ErrorFilter },
+  ];
 
 @Global()
 @Module({
