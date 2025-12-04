@@ -2,38 +2,50 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { MoinConfigService } from '../config/config.service';
-import { JwtPayload, TokenType } from './jwt.interface';
+import { JwtPayload, RefreshTokenData, TokenType } from './jwt.interface';
 import { Request } from 'express';
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(
   Strategy,
-  'jwt-refresh',
+  'jwt-refresh', // AuthGuard('jwt-refresh')에서 사용될 전략 이름
 ) {
   constructor(private configService: MoinConfigService) {
     const jwtConfig = configService.getJwtConfig();
-    // 부모 클래스에 설정을 넘겨준다.
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'), // body의 refreshToken 필드에 담겨온다.
-      ignoreExpiration: false, // 만료된 토큰을 허용할지 여부
-      secretOrKey: jwtConfig.JWT_REFRESH_SECRET,  // 토큰 서명을 검증할 비밀키
-      passReqToCallback: true, // true로 설정하면, 아래 validate 메서드의 첫 번째 인자로 Request 객체가 들어옴
+      // [핵심] 요청의 Body나 Header가 아닌 '쿠키'에서 토큰을 추출합니다.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request) => {
+          return req.cookies?.refreshToken;
+        },
+      ]),
+      ignoreExpiration: false, // 만료된 토큰은 거부 (401 에러)
+      secretOrKey: jwtConfig.JWT_REFRESH_SECRET, // 서명 검증을 위한 비밀키
+      passReqToCallback: true, // validate()에서 req 객체를 직접 쓰기 위해 true 설정
     });
   }
 
-  // 토큰의 서명이 유효하고 만료되지 않았을 때 호출, 여기서 추가적인 비즈니스 로직 검증 수행
   /**
-   * 
-   * @param req - 요청 객체
-   * @param payload - 토큰을 디코딩한 내용
-   * @returns 
+   * [토큰 검증 로직]
+   * super()에서 서명 유효성 검사가 끝난 후 실행됩니다.
+   * 여기서 반환된 값은 request.user에 저장됩니다.
    */
-  async validate(req: Request, payload: JwtPayload): Promise<JwtPayload> {
-    if (payload.type !== TokenType.REFRESH) { // 보안 검사, 이 토큰이 진짜 refresh 용도인지 확인
+  async validate(req: Request, payload: JwtPayload): Promise<RefreshTokenData> {
+    // 1. 토큰 타입 보안 검사 (Access Token을 Refresh Token처럼 쓰는 공격 방지)
+    if (payload.type !== TokenType.REFRESH) {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    // 반환된 pyaload는 위 Guard의 handleRequest 메서드의 'user'인자로 전달
-    return payload;
+    // 2. 쿠키에서 원본 토큰 문자열 추출 (Redis 대조나 갱신 시 필요함)
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    // 3. 최종 반환값 -> @CurrentRefreshToken() 데코레이터나 req.user에서 사용됨
+    return {
+      payload,
+      refreshToken,
+    };
   }
 }
