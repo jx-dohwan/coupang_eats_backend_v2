@@ -5,8 +5,10 @@ import {
   HttpStatus,
   Post,
   Request,
+  Response,
   UseGuards,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { User } from '../../entities/user/user.entity';
 import { AuthService } from './auth.service';
 import { SignUpBody } from './dto/request/signUp.body';
@@ -16,38 +18,99 @@ import { CurrentUser } from '../../core/decorator/currentUser.decorator';
 import { ExtractJwt } from 'passport-jwt';
 import { Public } from '../../core/decorator/public.decorator';
 import { RefreshTokenGuard } from '../../core/guard/refreshToken.guard';
+import { Env } from '../../core/config';
+import { CurrentRefreshToken } from '../../core/decorator/currentRefreshToken.decorator';
 
-// 'auth' 경로로 들어오는 요청을 담당하는 컨트롤로 (예: /auth/sign-up)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly isLocal: boolean;
 
-  @Public() // 로그인하지 않은 사용자도 접근 가능
-  @Post('sign-up')
-  @HttpCode(HttpStatus.CREATED) // 성공 시 201 Created 반환
-  async signUp(@Body() body: SignUpBody) {
-    return this.authService.signUp(body); // 요청 본문(body) 내용을 검증한 뒤 서비스의 회원가입 로직을 호출
+  constructor(private readonly authService: AuthService) {
+    // 로컬 개발 환경인지 확인 (쿠키 보안 옵션인 Secure, SameSite 설정을 위함)
+    this.isLocal = process.env.NODE_ENV === Env.local;
   }
 
+  // [Helper] Refresh Token을 HttpOnly 쿠키에 저장하는 메서드
+  private setRefreshTokenCookie(
+    res: ExpressResponse,
+    refreshToken: string,
+  ): void {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: !this.isLocal, // true: 자바스크립트로 접근 불가 (XSS 방지)
+      secure: !this.isLocal, // true: HTTPS에서만 전송 (로컬은 false)
+      sameSite: this.isLocal ? 'none' : 'strict', // CSRF 공격 방지 설정
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 쿠키 유효기간 7일
+    });
+  }
+
+  // [Helper] 로그아웃 시 클라이언트의 Refresh Token 쿠키를 삭제하는 메서드
+  private clearRefreshTokenCookie(res: ExpressResponse): void {
+    res.clearCookie('refreshToken', {
+      httpOnly: !this.isLocal,
+      secure: !this.isLocal,
+      sameSite: this.isLocal ? 'none' : 'strict',
+    });
+  }
+
+  // 1. 회원가입 API (토큰 발급 안 함)
+  @Public() // 인증 없이 접근 가능
+  @Post('sign-up')
+  @HttpCode(HttpStatus.CREATED)
+  async signUp(@Body() body: SignUpBody) {
+    return this.authService.signUp(body);
+  }
+
+  // 2. 로그인 API
   @Public()
   @Post('sign-in')
-  @HttpCode(HttpStatus.OK) // 성공 시 200 OK 반환
-  async signIn(@Body() body: SignInBody) {
-    return this.authService.signIn(body);
+  @HttpCode(HttpStatus.OK)
+  async signIn(
+    @Body() body: SignInBody,
+    // passthrough: true -> NestJS가 응답을 처리하되, 우리가 쿠키나 헤더를 직접 조작할 수 있게 함
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const tokenPair = await this.authService.signIn(body);
+
+    // Refresh Token은 보안 쿠키에 굽고
+    this.setRefreshTokenCookie(res, tokenPair.refreshToken);
+
+    // Access Token만 응답 Body로 반환
+    return { accessToken: tokenPair.accessToken };
   }
 
+  // 3. 로그아웃 API
   @Post('sign-out')
   @HttpCode(HttpStatus.OK)
-  async signOut(@CurrentUser() user: User, @Request() req: Request) {
-    const accessToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req) ?? ''; // 헤더에서 'Bearer ' 토큰 문자열만 추출
-    return this.authService.signOut(user.id, accessToken); // 유저 ID와 토큰을 서비스로 넘겨서 해당 토큰을 무효화(블랙리스트 처리)
+  async signOut(
+    @CurrentUser() user: User, // 현재 로그인한 유저 정보
+    @Request() req: any,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    // 헤더에서 Access Token 추출 (블랙리스트 등록용)
+    const accessToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req) ?? '';
+
+    // 클라이언트의 쿠키 삭제
+    this.clearRefreshTokenCookie(res);
+
+    // 서버 로직 수행 (Redis에서 Refresh Token 삭제 및 Access Token 블랙리스트 처리)
+    return this.authService.signOut(user.id, accessToken);
   }
 
-  @Public()
+  // 4. 토큰 갱신 API
+  @Public() // AccessToken 만료 시 호출되므로 Public이어야 함
+  @UseGuards(RefreshTokenGuard) // 대신 RefreshToken이 유효한지 검증하는 가드 사용
   @Post('refresh')
-  @UseGuards(RefreshTokenGuard)
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() body: RefreshBody) { // Access Token이 만료되었을때, 가지고 있는 Refresh Token을 Body로 보내 새 토큰을 받는다.
-    return this.authService.refreshTokens(body.refreshToken);
+  async refresh(
+    @CurrentRefreshToken() refreshToken: string, // 쿠키에서 추출한 토큰
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ) {
+    // 토큰 갱신 (RTR: Refresh Token Rotation)
+    const tokenPair = await this.authService.refreshTokens(refreshToken);
+
+    // 새로 발급된 Refresh Token을 다시 쿠키에 저장
+    this.setRefreshTokenCookie(res, tokenPair.refreshToken);
+
+    return { accessToken: tokenPair.accessToken };
   }
 }
