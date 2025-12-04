@@ -8,12 +8,16 @@ import { Request } from 'express';
 import { JwtService } from '../jwt/jwt.service';
 import { IS_PUBLIC_KEY } from '../decorator/public.decorator';
 import { Reflector } from '@nestjs/core';
+import { RequestContextService } from '../cls/cls.service';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class JwtBlacklistGuard implements CanActivate {
   constructor(
     private reflector: Reflector, // 메타데이터를 읽어오기 위한 도구
     private jwtService: JwtService, // 블랙리스트 확인 로직이 들어가있는 서비스
+    private readonly loggerService: LoggerService,
+    private readonly requestContextService: RequestContextService,
   ) {}
 
   // 요청이 들어올 때 실행되는 메서드로, true를 반환하면 요청 허용, false나 예외를 던디면 요청 거부
@@ -44,6 +48,15 @@ export class JwtBlacklistGuard implements CanActivate {
     const isBlacklisted = await this.jwtService.isTokenBlacklisted(token);
     // 블랙리스트에 등록된 토큰이라면 접근을 거부
     if (isBlacklisted) {
+      const requestId = this.requestContextService.getRequestId();
+      this.loggerService.warn(
+        this.canActivate.name, // 1. 메서드 이름 (Context)
+        {
+          requestId,
+          token, // 2. 데이터 객체 (필요하다면 보안을 위해 token 일부만 로깅 추천)
+        },
+        'JwtBlacklistGuard Error: Token has been revoked', // 3. 로그 메시지
+      );
       throw new UnauthorizedException('Token has been revoked');
     }
     // 모든 검사를 통과했으면 요청을 허용
