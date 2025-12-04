@@ -2,46 +2,44 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  Inject,
 } from '@nestjs/common';
 import { JwtService } from '../../core/jwt/jwt.service';
 import { User } from '../../entities/user/user.entity';
 import { TokenPair } from '../../core/jwt/jwt.interface';
 import { LoggerService } from '../../core/logger/logger.service';
-import * as bcrypt from 'bcrypt';
+import { HASH_SERVICE } from '../../core/hash/hash.interface';
 import { Transactional } from 'typeorm-transactional';
+import type { IHashService } from '../../core/hash/hash.interface'; 
 import { SignUpBody } from './dto/request/signUp.body';
 import { UserRepository } from '../user/repository/user.repository';
 import { SignInBody } from './dto/request/signIn.body';
 
 @Injectable()
 export class AuthService {
-  // 필요한 레포지토리와 서비스들을 주입받는다.
   constructor(
     private readonly userRepository: UserRepository,
     private readonly jwtService: JwtService,
     private readonly loggerService: LoggerService,
+    // 의존성 역전 원칙 적용: 구현체(BcryptService) 대신 인터페이스(HASH_SERVICE) 주입
+    @Inject(HASH_SERVICE) private readonly hashService: IHashService,
   ) {}
 
-  // 이메일로 유저를 찾고, 비밀번호가 일치하는지 확인하는 유저 검증 로직
+  /**
+   * [유저 검증] 이메일 존재 여부 및 비밀번호 일치 확인
+   * 성공 시 User 객체, 실패 시 null 반환
+   */
   async validateUser(email: string, password: string): Promise<User | null> {
     try {
-      // 1. 이메일 유저 조회
-      const user = await this.userRepository.findOneByFilters({
-        email,
-      });
-      if (!user) {
+      const user = await this.userRepository.findOneByFilters({ email });
+
+      // 유저가 없거나 비밀번호가 틀리면 null 반환
+      if (!user || !(await this.hashService.compare(password, user.password))) {
         return null;
       }
 
-      // 비밀번호 비교(입력받은 평문 비밀번호 vs DB에 저장된 해시 비밀번호
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return null;
-      }
-      // 검증 성공시 유제 객체 반환
       return user;
     } catch (error) {
-      // 검증 과정에서 DB 에러 등이 발생하면 로그
       this.loggerService.error(
         this.validateUser.name,
         error,
@@ -51,48 +49,54 @@ export class AuthService {
     }
   }
 
-  @Transactional() // 로직 중간에 실패 시 DB 상태를 롤백
-  async signUp(body: SignUpBody): Promise<TokenPair> {
+  /**
+   * [회원가입] 유저 생성
+   * @Transactional 데코레이터로 DB 작업 원자성 보장
+   */
+  @Transactional()
+  async signUp(body: SignUpBody): Promise<void> {
     const { email, password } = body;
 
-    // 이미 가입된 이메일인지 확인(중복체크)
-    const existingUser = await this.userRepository.findOneByFilters({
-      email,
-    });
+    // 1. 이메일 중복 검사
+    const existingUser = await this.userRepository.findOneByFilters({ email });
     if (existingUser) {
-      throw new ConflictException('User already exists'); // 409 Conflict 에러 발생
+      throw new ConflictException('User already exists');
     }
 
-    // 비밀번호 해싱(보안을 위해 비밀번호를 암호화하여 저장)
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // 2. 비밀번호 암호화 (Hashing)
+    const hashedPassword = await this.hashService.hash(password);
 
-    // DTO의 toEntity 메서드를 통해 엔터티로 변환하면서 해시된 비밀번호를 주입
-    const user = await this.userRepository.save(body.toEntity(hashedPassword));
-
-    // 가입 완료 후 바로 로그인 처리
-    return this.jwtService.generateTokenPair(user.id);
+    // 3. 유저 저장
+    await this.userRepository.save(body.toEntity(hashedPassword));
   }
 
+  /**
+   * [로그인] 유저 검증 후 토큰 발급
+   */
   async signIn(body: SignInBody): Promise<TokenPair> {
     const { email, password } = body;
-    // 아이디/비번 검증
+
+    // 1. 아이디/비밀번호 확인
     const user = await this.validateUser(email, password);
-    // 검증 실패 시 401 Unauthorized 예외 발생
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // 검증 성공 시 토큰 발급
+    // 2. Access/Refresh 토큰 쌍 생성 및 반환
     return this.jwtService.generateTokenPair(user.id);
   }
 
+  /**
+   * [로그아웃] Refresh Token 삭제 및 Access Token 블랙리스트 처리
+   */
   async signOut(userId: User['id'], accessToken: string): Promise<void> {
-    // JwtService에 위임하여 Redis 등에 해당 토큰을 블랙리스트로 등록하는 등의 처리를 수행
     await this.jwtService.revokeAllUserTokens(userId, accessToken);
   }
 
+  /**
+   * [토큰 갱신] Refresh Token을 이용해 새로운 토큰 쌍 발급 (RTR)
+   */
   async refreshTokens(refreshToken: string): Promise<TokenPair> {
-    // JwtService에 위임하여 Refresh Token의 유효성을 검사하고 새 토큰 쌍을 발급
-    return await this.jwtService.refreshTokens(refreshToken);
+    return this.jwtService.refreshTokens(refreshToken);
   }
 }

@@ -48,7 +48,7 @@ export class ErrorFilter implements ExceptionFilter {
         ? JSON.stringify({ ...request.body, password: '******' })
         : JSON.stringify(request.body);
     } catch {
-      this.loggerService.warn(
+      this.loggerService.error(
         this.constructor.name,
         request.body,
         'failed stringify request body',
