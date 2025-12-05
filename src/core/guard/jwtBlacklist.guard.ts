@@ -5,17 +5,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { JwtService } from '../jwt/jwt.service';
 import { IS_PUBLIC_KEY } from '../decorator/public.decorator';
 import { Reflector } from '@nestjs/core';
 import { RequestContextService } from '../cls/cls.service';
 import { LoggerService } from '../logger/logger.service';
+import { TokenService } from '../jwt/jwt.service';
 
 @Injectable()
 export class JwtBlacklistGuard implements CanActivate {
   constructor(
     private reflector: Reflector, // 메타데이터를 읽어오기 위한 도구
-    private jwtService: JwtService, // 블랙리스트 확인 로직이 들어가있는 서비스
+    private tokenService: TokenService, // 블랙리스트 확인 로직이 들어가있는 서비스
     private readonly loggerService: LoggerService,
     private readonly requestContextService: RequestContextService,
   ) {}
@@ -45,7 +45,7 @@ export class JwtBlacklistGuard implements CanActivate {
     }
 
     // 토큰 블랙리스트 확인, Redis나 DB를 조회하여 이 토큰이 로그아웃 처리가 된 토큰인지 확인
-    const isBlacklisted = await this.jwtService.isTokenBlacklisted(token);
+    const isBlacklisted = await this.tokenService.isTokenBlacklisted(token);
     // 블랙리스트에 등록된 토큰이라면 접근을 거부
     if (isBlacklisted) {
       const requestId = this.requestContextService.getRequestId();

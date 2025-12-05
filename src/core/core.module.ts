@@ -12,7 +12,7 @@ import { LoggerModule } from './logger/logger.module';
 import { CacheModule } from './cache/cache.module';
 import { JwtBlacklistGuard } from './guard/jwtBlacklist.guard';
 import { AccessTokenGuard } from './guard/accessToken.guard';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule } from './jwt/jwt.module'; 
 import { ClsModule } from './cls/cls.module';
 import { ClsMiddleware } from 'nestjs-cls';
 import { RequestLoggerMiddleware } from './middleware/requestLogger.middleware';

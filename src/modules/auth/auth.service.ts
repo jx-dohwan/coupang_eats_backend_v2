@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
   Inject,
 } from '@nestjs/common';
-import { JwtService } from '../../core/jwt/jwt.service';
+import { TokenService } from '../../core/jwt/jwt.service';
 import { User } from '../../entities/user/user.entity';
 import { TokenPair } from '../../core/jwt/jwt.interface';
 import { LoggerService } from '../../core/logger/logger.service';
@@ -19,7 +19,7 @@ import { SignInBody } from './dto/request/signIn.body';
 export class AuthService {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly jwtService: JwtService,
+    private readonly tokenService: TokenService,
     private readonly loggerService: LoggerService,
     // 의존성 역전 원칙 적용: 구현체(BcryptService) 대신 인터페이스(HASH_SERVICE) 주입
     @Inject(HASH_SERVICE) private readonly hashService: IHashService,
@@ -83,20 +83,20 @@ export class AuthService {
     }
 
     // 2. Access/Refresh 토큰 쌍 생성 및 반환
-    return this.jwtService.generateTokenPair(user.id);
+    return this.tokenService.generateTokenPair(user.id);
   }
 
   /**
    * [로그아웃] Refresh Token 삭제 및 Access Token 블랙리스트 처리
    */
   async signOut(userId: User['id'], accessToken: string): Promise<void> {
-    await this.jwtService.revokeAllUserTokens(userId, accessToken);
+    await this.tokenService.revokeAllUserTokens(userId, accessToken);
   }
 
   /**
    * [토큰 갱신] Refresh Token을 이용해 새로운 토큰 쌍 발급 (RTR)
    */
   async refreshTokens(refreshToken: string): Promise<TokenPair> {
-    return this.jwtService.refreshTokens(refreshToken);
+    return this.tokenService.refreshTokens(refreshToken);
   }
 }

@@ -13,7 +13,7 @@ import {
 import { User } from '../../entities/user/user.entity';
 
 @Injectable()
-export class JwtService {
+export class TokenService {
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
   private readonly accessExpiration: string;
