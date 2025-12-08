@@ -2,6 +2,7 @@ import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { CategoryEntity } from '../category/category.entity';
 import { DishEntity } from '../dish/dish.entity';
+import { User } from '../user/user.entity';
 
 @Entity('restaurant')
 export class RestaurantEntity extends UuidEntity {
@@ -18,13 +19,20 @@ export class RestaurantEntity extends UuidEntity {
   deliveryFee: number;
 
   @Column()
-  minmumPrice: number;
+  minimumPrice: number;
 
   @Column({ default: false })
   isPromoted: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  promotedUnitil: Date;
+  promotedUntil: Date;
+
+  @Column()
+  ownerId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' }) // 주인이 탈퇴하면 식당도 삭제
+  @JoinColumn({ name: 'ownerId' })
+  owner: User;
 
   @Column()
   categoryId: string;

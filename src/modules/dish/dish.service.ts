@@ -20,7 +20,7 @@ export class DishService {
       await this.restaurantRepository.findByIdOrThrow(restaurantId);
 
     // 2. 소유권 확인 (본인 식당인지)
-    if (restaurant.id !== owner.id) {
+    if (restaurant.ownerId !== owner.id) {
       throw new ForbiddenException('You are not the owner of this restaurant');
     }
 
@@ -44,7 +44,7 @@ export class DishService {
     );
 
     // 2. 소유권 확인
-    if (dish.restaurant.id !== owner.id) {
+    if (dish.restaurant.ownerId !== owner.id) {
       throw new ForbiddenException('You cannot delete this dish');
     }
 
