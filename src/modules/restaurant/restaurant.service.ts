@@ -32,7 +32,7 @@ export class RestaurantService {
     // ownerId는 관계 설정을 위해 명시적으로 넣어준다.
     const restaurant = this.restaurantRepository.create({
       ...dto,
-      id: owner.id,
+      ownerId: owner.id,
       category,
     });
 
@@ -43,7 +43,7 @@ export class RestaurantService {
    * 내 식당 목록 조회 (점주 대시보드 용)
    */
   async getMyRestaurants(owner: User) {
-    return this.restaurantRepository.findMany({ id: owner.id });
+    return this.restaurantRepository.findMany({ ownerId: owner.id });
   }
 
   /**
