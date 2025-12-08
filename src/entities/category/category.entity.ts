@@ -16,11 +16,4 @@ export class CategoryEntity extends UuidEntity {
 
   @OneToMany(() => RestaurantEntity, (restaurant) => restaurant.category)
   restaurants: RestaurantEntity[];
-
-  @Column()
-  ownerId: string;
-
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'ownerId' })
-  owner: User;
 }
