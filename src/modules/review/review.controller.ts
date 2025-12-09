@@ -15,10 +15,10 @@ export class ReviewController {
   @Post()
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.CLIENT)
-  async createPayment(
+  async createReview(
     @CurrentUser() user: User,
-    @Body() createReviewtDto: CreateReviewDto,
+    @Body() createReviewDto: CreateReviewDto,
   ) {
-    return this.reviewService.createReview(user, createReviewtDto);
+    return this.reviewService.createReview(user, createReviewDto);
   }
 }

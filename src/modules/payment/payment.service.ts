@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PaymentRepository } from './repository/payment.repository';
 import { OrderRepository } from '../order/repository/order.repository';
-import { CreatePaymentDto } from '../restaurant/dto/create-payment.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 import { User } from '../../entities/user/user.entity';
 
 @Injectable()
