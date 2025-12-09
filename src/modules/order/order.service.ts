@@ -12,12 +12,14 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderItemEntity } from '../../entities/order/order-item.entity';
 import { OrderStatus } from '../../common/type/common.interface';
 import { Role } from '../../entities/user/user.interface';
-import { In } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { EditOrderDto } from './dto/edit-order.dto';
+import { OrderEntity } from '../../entities/order/order.entity';
 
 @Injectable()
 export class OrderService {
   constructor(
+    private readonly dataSource: DataSource,
     private readonly orderRepository: OrderRepository,
     private readonly orderItemRepository: OrderItemRepository,
     private readonly restaurantRepository: RestaurantRepository,
@@ -35,52 +37,64 @@ export class OrderService {
     const restaurant =
       await this.restaurantRepository.findByIdOrThrow(restaurantId);
 
-    let finalTotal = 0;
-    const orderItems: OrderItemEntity[] = [];
-
     // 성능을 위해 Dish 목록 한번에 조회
     const dishIds = items.map((item) => item.dishId);
     const dishes = await this.dishRepository.findByIds(dishIds);
 
-    for (const itemDto of items) {
-      const dish = dishes.find((d) => d.id === itemDto.dishId);
-      if (!dish)
-        throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
+    // [트랜잭션 시작] 모든 저장 작업은 이 안에서 이루어짐
+    return this.dataSource.transaction(async (manager) => {
+      let finalTotal = 0;
+      const orderItems: OrderItemEntity[] = [];
 
-      let dishTotal = dish.price;
+      for (const itemDto of items) {
+        const dish = dishes.find((d) => d.id === itemDto.dishId);
+        if (!dish)
+          throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
 
-      // 옵션 가격 계산
-      if (itemDto.options) {
-        for (const option of itemDto.options) {
-          dishTotal += option.extra;
+        let dishTotal = dish.price;
+
+        // [보안 수정] 옵션 가격 계산 로직 변경
+        // 클라이언트가 보낸 'extra' 가격을 믿지 않고, DB에 있는 가격을 사용해야 함.
+        if (itemDto.options) {
+          for (const userOption of itemDto.options) {
+            // DB에 저장된 메뉴 옵션 중에서 이름이 일치하는 것을 찾음
+            const validOption = dish.options?.find(
+              (o) => o.name === userOption.name,
+            );
+
+            if (validOption) {
+              // ✅ 실제 DB 가격 사용 (보안 강화)
+              dishTotal += validOption.extra;
+            }
+            // (선택사항) 유효하지 않은 옵션이 오면 에러를 던지거나 무시할 수 있음
+          }
         }
-      }
-      finalTotal += dishTotal;
+        finalTotal += dishTotal;
 
-      // 스냅샷 생성
-      const orderItem = await this.orderItemRepository.save(
-        this.orderItemRepository.create({
+        // 스냅샷 생성 & 저장 (manager 사용)
+        // manager.save를 써야 트랜잭션 내에서 처리됨
+        const orderItem = await manager.save(OrderItemEntity, {
           dish: dish,
           dishName: dish.name,
-          options: itemDto.options,
-        }),
-      );
-      orderItems.push(orderItem);
-    }
+          options: itemDto.options, // 스냅샷으로는 유저가 선택한 것을 저장
+        });
+        orderItems.push(orderItem);
+      }
 
-    finalTotal += restaurant.deliveryFee;
+      finalTotal += restaurant.deliveryFee;
 
-    const order = await this.orderRepository.save(
-      this.orderRepository.create({
+      // 주문 저장 (manager 사용)
+      const order = await manager.save(OrderEntity, {
         customer,
         restaurant,
         total: finalTotal,
         items: orderItems,
         status: OrderStatus.Pending,
-      }),
-    );
+      });
 
-    return order;
+      return order;
+    });
+    // [트랜잭션 종료] 성공 시 자동 Commit, 에러 시 자동 Rollback
   }
 
   /**
@@ -178,6 +192,13 @@ export class OrderService {
     return order;
   }
 
+  /**
+   * 4. 상태 변경
+   * @param user 
+   * @param orderId 
+   * @param param2 
+   * @returns 
+   */
   async editOrderStatus(user: User, orderId: string, { status }: EditOrderDto) {
     const order =
       await this.orderRepository.findOneWithOmitNotJoinedPropsOrThrow(
@@ -209,7 +230,7 @@ export class OrderService {
         }
       } else {
         throw new ForbiddenException(
-          'Driver can only update to PickedUp or Deliveryed',
+          'Driver can only update to PickedUp or Delivered',
         );
       }
     }
