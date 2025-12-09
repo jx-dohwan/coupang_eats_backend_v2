@@ -8,6 +8,7 @@ import { Module } from '@nestjs/common';
 import { CategoryModule } from './modules/category/category.module';
 import { DishModule } from './modules/dish/dish.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
+import { OrderModule } from './modules/order/order.module';
 
 const applicationModules = [
   UserModule,
@@ -15,6 +16,7 @@ const applicationModules = [
   CategoryModule,
   DishModule,
   RestaurantModule,
+  OrderModule,
 ];
 
 @Module({

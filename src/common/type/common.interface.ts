@@ -32,3 +32,11 @@ export type Union<T> =
       : T extends ValueType
         ? T
         : never;
+
+export enum OrderStatus {
+  Pending = 'Pending', // 주문 대기 (점주 수락 전)
+  Cooking = 'Cooking', // 조리 중
+  Cooked = 'Cooked', // 조리 완료 (기사 대기)
+  PickedUp = 'PickedUp', // 배달 픽업 (배달 중)
+  Delivered = 'Delivered', // 배달 완료
+}

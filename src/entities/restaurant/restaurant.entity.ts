@@ -3,6 +3,7 @@ import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { CategoryEntity } from '../category/category.entity';
 import { DishEntity } from '../dish/dish.entity';
 import { User } from '../user/user.entity';
+import { OrderEntity } from '../order/order.entity';
 
 @Entity('restaurant')
 export class RestaurantEntity extends UuidEntity {
@@ -46,4 +47,7 @@ export class RestaurantEntity extends UuidEntity {
 
   @OneToMany(() => DishEntity, (dish) => dish.restaurant)
   dishes: DishEntity[];
+
+  @OneToMany(() => OrderEntity, (order) => order.restaurant)
+  orders: OrderEntity[];
 }
