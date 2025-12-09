@@ -6,7 +6,7 @@ import { Roles } from '../../core/decorator/roles.decorator';
 import { Role } from '../../entities/user/user.interface';
 import { CurrentUser } from '../../core/decorator/currentUser.decorator';
 import { User } from '../../entities/user/user.entity';
-import { CreatePaymentDto } from '../restaurant/dto/create-payment.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @Controller('payments')
 export class PaymentController {

@@ -13,7 +13,7 @@ export class OrderCronService {
   // 매일 새벽 4시 실행
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async handleCron() {
-    this.logger.debug('Running cron: Cleaing up stale orders...');
+    this.logger.debug('Running cron: Cleaning up stale orders...');
 
     // 24 시간 지난 Pending 주문 삭제
     const yesterday = new Date();

@@ -8,6 +8,7 @@ import { RestaurantModule } from '../restaurant/restaurant.module';
 import { DishModule } from '../dish/dish.module';
 import { OrderItemEntity } from '../../entities/order/order-item.entity';
 import { OrderEntity } from '../../entities/order/order.entity';
+import { OrderCronService } from './order-cron.service';
 
 @Module({
   imports: [
@@ -16,6 +17,11 @@ import { OrderEntity } from '../../entities/order/order.entity';
     DishModule,
   ],
   controllers: [OrderController],
-  providers: [OrderService, OrderRepository, OrderItemRepository],
+  providers: [
+    OrderService,
+    OrderRepository,
+    OrderItemRepository,
+    OrderCronService,
+  ],
 })
 export class OrderModule {}
