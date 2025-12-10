@@ -10,8 +10,8 @@ export class CoreOutput {
   @ApiProperty({
     description: '에러 메시지 (성공 시 null)',
     example: null,
-    required: false, // Swagger UI에서 필수가 아님을 표시
+    required: false,
     nullable: true,
   })
-  error?: string;
+  error?: string | null;
 }
