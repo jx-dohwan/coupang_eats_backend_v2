@@ -9,12 +9,14 @@ import { DishModule } from '../dish/dish.module';
 import { OrderItemEntity } from '../../entities/order/order-item.entity';
 import { OrderEntity } from '../../entities/order/order.entity';
 import { OrderCronService } from './order-cron.service';
+import { EventsModule } from '../../events/events.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([OrderEntity, OrderItemEntity]),
     RestaurantModule,
     DishModule,
+    EventsModule,
   ],
   controllers: [OrderController],
   providers: [
@@ -23,5 +25,6 @@ import { OrderCronService } from './order-cron.service';
     OrderItemRepository,
     OrderCronService,
   ],
+  exports: [OrderRepository],
 })
 export class OrderModule {}

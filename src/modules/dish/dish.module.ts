@@ -12,5 +12,6 @@ import { DishEntity } from '../../entities/dish/dish.entity';
   ],
   controllers: [DishController],
   providers: [DishService, DishRepository],
+  exports: [DishRepository],
 })
 export class DishModule {}
