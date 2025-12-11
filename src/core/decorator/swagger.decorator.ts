@@ -9,15 +9,18 @@ import {
 import { CoreOutput } from '../../common/dto/core.output';
 import { ErrorResponse } from '../../common/dto/error.response';
 
-// 1. 단순 조회용 (GET) - 200 OK
-export function ApiDocOk(summary: string, responseType?: Type<any>) {
+// [수정] responseType 타입을 변경합니다. (단일 객체 또는 배열 허용)
+export function ApiDocOk(
+  summary: string,
+  responseType?: Type<any> | [Function],
+) {
   return applyDecorators(
     ApiOperation({ summary }),
     ApiOkResponse({
       description: '요청 성공',
-      type: responseType || CoreOutput, // 타입 미지정 시 기본값
+      // 배열이 들어오면 그대로 넘겨주고, 없으면 기본값 CoreOutput
+      type: responseType || CoreOutput,
     }),
-    // 공통 에러 응답 자동 추가
     ApiResponse({
       status: 400,
       description: '잘못된 요청',
@@ -31,11 +34,10 @@ export function ApiDocOk(summary: string, responseType?: Type<any>) {
   );
 }
 
-// 2. 생성/수정용(POST, PATCH, PUT) - 201 Created & 인증 필요
 export function ApiDocCreated(summary: string, responseType?: Type<any>) {
   return applyDecorators(
     ApiOperation({ summary }),
-    ApiBearerAuth('access-token'), // main.ts 설정과 이름 일치 필수
+    ApiBearerAuth('access-token'),
     ApiCreatedResponse({
       description: '생성/수정 성공',
       type: responseType || CoreOutput,
