@@ -11,12 +11,19 @@ import { OrderStatus } from '../../common/type/common.interface';
 import { User } from '../user/user.entity';
 import { RestaurantEntity } from '../restaurant/restaurant.entity';
 import { OrderItemEntity } from './order-item.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 @Entity('order')
 export class OrderEntity extends UuidEntity {
+  @ApiProperty({ description: '총 주문 금액', example: 25000 })
   @Column({ type: 'int', nullable: true })
   total: number;
 
+  @ApiProperty({
+    description: '주문 상태',
+    enum: OrderStatus, // Enum 타입 명시
+    example: OrderStatus.Pending,
+  })
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
   status: OrderStatus;
 
@@ -51,6 +58,7 @@ export class OrderEntity extends UuidEntity {
   restaurantId: string;
 
   // 4. 주문 항목
+  @ApiProperty({ description: '주문 항목 리스트', type: [OrderItemEntity] })
   @ManyToMany(() => OrderItemEntity, { eager: true, cascade: true })
   @JoinTable({ name: 'order_items_order_item' })
   items: OrderItemEntity[];

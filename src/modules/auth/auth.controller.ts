@@ -20,7 +20,16 @@ import { Public } from '../../core/decorator/public.decorator';
 import { RefreshTokenGuard } from '../../core/guard/refreshToken.guard';
 import { Env } from '../../core/config';
 import { CurrentRefreshToken } from '../../core/decorator/currentRefreshToken.decorator';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { CoreOutput } from '../../common/dto/core.output';
+import { AccessTokenResponse } from './dto/response/access-token.response';
 
+@ApiTags('Auth (인증)')
 @Controller('auth')
 export class AuthController {
   private readonly isLocal: boolean;
@@ -53,6 +62,8 @@ export class AuthController {
   }
 
   // 1. 회원가입 API (토큰 발급 안 함)
+  @ApiOperation({ summary: '회원가입' })
+  @ApiResponse({ status: 201, description: '성공', type: CoreOutput })
   @Public() // 인증 없이 접근 가능
   @Post('sign-up')
   @HttpCode(HttpStatus.CREATED)
@@ -61,6 +72,12 @@ export class AuthController {
   }
 
   // 2. 로그인 API
+  @ApiOperation({ summary: '로그인' })
+  @ApiResponse({
+    status: 200,
+    description: '성공 (Access 토큰 반환)',
+    type: AccessTokenResponse,
+  })
   @Public()
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
@@ -79,6 +96,9 @@ export class AuthController {
   }
 
   // 3. 로그아웃 API
+  @ApiOperation({ summary: '로그아웃' })
+  @ApiBearerAuth('access-token')
+  @ApiResponse({ status: 200, description: '성공', type: CoreOutput })
   @Post('sign-out')
   @HttpCode(HttpStatus.OK)
   async signOut(
@@ -97,6 +117,8 @@ export class AuthController {
   }
 
   // 4. 토큰 갱신 API
+  @ApiOperation({ summary: '토큰 갱신 (Refresh Token)' })
+  @ApiResponse({ status: 200, description: '성공', type: AccessTokenResponse })
   @Public() // AccessToken 만료 시 호출되므로 Public이어야 함
   @UseGuards(RefreshTokenGuard) // 대신 RefreshToken이 유효한지 검증하는 가드 사용
   @Post('refresh')
