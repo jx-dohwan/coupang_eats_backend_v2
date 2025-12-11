@@ -3,9 +3,11 @@ import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { User } from '../user/user.entity';
 import { RestaurantEntity } from '../restaurant/restaurant.entity';
 import { OrderEntity } from '../order/order.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 @Entity('payment')
 export class PaymentEntity extends UuidEntity {
+  @ApiProperty({ description: 'PG사 거래 ID', example: 'imp_1234567890' })
   @Column()
   transactionId: string;
 
@@ -23,6 +25,7 @@ export class PaymentEntity extends UuidEntity {
   @JoinColumn({ name: 'restaurantId' })
   restaurant: RestaurantEntity;
 
+  @ApiProperty({ description: '주문 ID', example: 'order-uuid-1234' })
   @Column()
   orderId: string;
 
