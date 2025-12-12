@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { RestaurantEntity } from '../../../entities/restaurant/restaurant.entity';
+import { plainToInstance } from 'class-transformer';
 
 export class CreateRestaurantDto {
   @ApiProperty({ description: '식당 이름', example: 'BBQ 서초점' })
@@ -28,4 +30,12 @@ export class CreateRestaurantDto {
   @ApiProperty({ description: '최소 주문 금액', example: 12000 })
   @IsNumber()
   minimumPrice: number;
+
+  toEntity(ownerId: string): RestaurantEntity {
+    const entity = plainToInstance(RestaurantEntity, this);
+
+    entity.ownerId = ownerId;
+
+    return entity;
+  }
 }

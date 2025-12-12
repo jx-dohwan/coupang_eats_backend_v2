@@ -2,9 +2,9 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { RestaurantRepository } from './repository/restaurant.repository';
 import { CategoryRepository } from '../category/repository/category.repository';
 import { User } from '../../entities/user/user.entity';
-import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { Role } from '../../entities/user/user.interface';
 import { PaginationRequest } from '../../common/pagination/pagination.request';
+import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -28,13 +28,9 @@ export class RestaurantService {
       dto.categoryId,
     );
 
-    // 3. 식당 객체 생성 및 저장
-    // ownerId는 관계 설정을 위해 명시적으로 넣어준다.
-    const restaurant = this.restaurantRepository.create({
-      ...dto,
-      ownerId: owner.id,
-      category,
-    });
+    // 3. 식당 객체 저장
+    const restaurant = dto.toEntity(owner.id);
+    restaurant.category = category;
 
     return this.restaurantRepository.save(restaurant);
   }
