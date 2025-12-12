@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { plainToInstance, Type } from 'class-transformer';
 import {
   IsArray,
   IsNumber,
@@ -7,6 +7,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { DishEntity } from '../../../entities/dish/dish.entity';
 
 export class DishOptionDto {
   @ApiProperty({ description: '옵션 이름', example: '치즈 추가' })
@@ -46,4 +47,12 @@ export class CreateDishDto {
   @ValidateNested({ each: true })
   @Type(() => DishOptionDto)
   options?: DishOptionDto[];
+
+  toEntity(restaurantId: string): DishEntity {
+    const entity = plainToInstance(DishEntity, this);
+    // 외래키 주입
+    entity.restaurantId = restaurantId;
+
+    return entity;
+  }
 }

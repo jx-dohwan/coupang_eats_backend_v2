@@ -25,10 +25,7 @@ export class DishService {
     }
 
     // 3. 메뉴 생성 및 저장
-    const dish = this.dishRepository.create({
-      ...dto,
-      restaurantId,
-    });
+    const dish = dto.toEntity(restaurantId);
 
     return this.dishRepository.save(dish);
   }
