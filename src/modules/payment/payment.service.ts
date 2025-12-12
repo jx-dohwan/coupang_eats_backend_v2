@@ -13,9 +13,9 @@ export class PaymentService {
 
   /**
    * 결제
-   * @param user 
-   * @param dto 
-   * @returns 
+   * @param user
+   * @param dto
+   * @returns
    */
   async processPayment(user: User, dto: CreatePaymentDto) {
     // 1. 주문 조회
@@ -35,15 +35,8 @@ export class PaymentService {
     }
 
     // 4. 결제 저장
-    const payment = await this.paymentRepository.save(
-      this.paymentRepository.create({
-        transactionId: dto.transactionId,
-        user: user,
-        restaurantId: order.restaurantId,
-        order: order,
-      }),
-    );
+    const payment = dto.toEntity(user, order);
 
-    return payment;
+    return this.paymentRepository.save(payment);
   }
 }

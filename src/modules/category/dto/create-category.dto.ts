@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
+import { CategoryEntity } from '../../../entities/category/category.entity';
+import { plainToInstance } from 'class-transformer';
 
 export class CreateCategoryDto {
   @ApiProperty({
@@ -17,4 +19,12 @@ export class CreateCategoryDto {
   @IsString()
   @IsOptional()
   coverImg?: string;
+
+  toEntity(): CategoryEntity {
+    return plainToInstance(CategoryEntity, {
+      ...this,
+      // 슬러그 생성 로직을 DTO 내부로 갭슐화
+      slug: this.name.trim().toLowerCase().replace(/ /g, '-'),
+    });
+  }
 }
