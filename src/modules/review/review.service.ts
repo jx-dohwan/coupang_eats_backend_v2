@@ -31,21 +31,13 @@ export class ReviewService {
       );
     }
 
-    // 3. 리뷰 저장
+    // 3. 식당 조회
     const restaurant = await this.restaurantRepository.findByIdOrThrow(
       dto.restaurantId,
     );
 
-    const review = await this.reviewRepository.save(
-      this.reviewRepository.create({
-        score: dto.score,
-        reviewText: dto.reviewText,
-        reviewImg: dto.reviewImg,
-        client: user,
-        restaurant: restaurant,
-      }),
-    );
+    const review = dto.toEntity(user, restaurant);
 
-    return review;
+    return this.reviewRepository.save(review);
   }
 }
