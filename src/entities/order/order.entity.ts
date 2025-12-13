@@ -54,7 +54,7 @@ export class OrderEntity extends UuidEntity {
   })
   restaurant: RestaurantEntity;
 
-  @Column()
+  @Column({ nullable: true })
   restaurantId: string;
 
   // 4. 주문 항목

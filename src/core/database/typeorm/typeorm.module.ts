@@ -5,13 +5,14 @@ import {
   TypeOrmModuleOptions,
 } from '@nestjs/typeorm';
 import * as path from 'path';
-import { Env } from '../../config'; 
-import { MoinConfigService } from '../../config/config.service'; 
+import { Env } from '../../config';
+import { MoinConfigService } from '../../config/config.service';
 import { DataSourceOptions, DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import {
   initializeTransactionalContext,
   addTransactionalDataSource,
+  deleteDataSourceByName,
 } from 'typeorm-transactional';
 
 /**
@@ -26,10 +27,9 @@ export class TypeOrmModule {
   // 모듈 인스턴스를 저장하기 위한 private static 변수 (싱글톤 패턴)
   private static instance?: DynamicModule;
 
-
   /**
-   * 
-   * @returns 
+   *
+   * @returns
    * 앱 전역에서 단 한 번만 TypeORM 모듈을 초기화 한다.
    */
   static forRoot(): DynamicModule {
@@ -59,7 +59,7 @@ export class TypeOrmModule {
               ? path.join(__dirname + './../../../entities/*/*.entity.ts')
               : path.join(__dirname + './../../../entities/*/*.entity.js');
 
-              // TypeORM DataSource 서렂ㅇ 객체
+          // TypeORM DataSource 서렂ㅇ 객체
           const options: DataSourceOptions = {
             type: 'mysql', // (RDBMS에 맞게 postgres 등으로 변경 가능)
             host: dbConfig.DB_HOST,
@@ -85,6 +85,7 @@ export class TypeOrmModule {
         async dataSourceFactory(options?: DataSourceOptions) {
           if (!options) throw new Error('Invalid options passed');
 
+          deleteDataSourceByName('default');
           // 생성된 DataSource를 'typeorm-transactional'이 관리할 수 있도록
           // 'addTransactionalDataSource'로 래핑하여 반환
           return addTransactionalDataSource(new DataSource(options));
