@@ -10,10 +10,13 @@ import { OrderItemEntity } from '../../entities/order/order-item.entity';
 import { OrderEntity } from '../../entities/order/order.entity';
 import { OrderCronService } from './order-cron.service';
 import { EventsModule } from '../../events/events.module';
+import { OrderRepositoryModule } from './repository/order-repository.module';
+import { OrderItemRepositoryModule } from './repository/order-item-repository.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([OrderEntity, OrderItemEntity]),
+    OrderRepositoryModule,
+    OrderItemRepositoryModule,
     RestaurantModule,
     DishModule,
     EventsModule,

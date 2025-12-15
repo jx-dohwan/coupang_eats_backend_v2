@@ -2,14 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { GenericTypeOrmRepository } from '../../../core/database/typeorm/generic-typeorm.repository';
 import { ReviewEntity } from '../../../entities/review/review.entity';
 import { DataSource } from 'typeorm';
+import { CustomRepository } from '../../../../libs/common/typeorm.ex/typeorm-ex.decorator';
 
-@Injectable()
-export class ReviewRepository extends GenericTypeOrmRepository<ReviewEntity> {
-  constructor(dataSource: DataSource) {
-    super(
-      ReviewEntity,
-      dataSource.createEntityManager(),
-      dataSource.createQueryRunner(),
-    );
-  }
-}
+@CustomRepository(ReviewEntity)
+export class ReviewRepository extends GenericTypeOrmRepository<ReviewEntity> {}

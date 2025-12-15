@@ -7,13 +7,10 @@ import { ReviewController } from './review.controller';
 import { ReviewService } from './review.service';
 import { ReviewRepository } from './repository/review.repository';
 import { RestaurantModule } from '../restaurant/restaurant.module';
+import { ReviewRepositoryModule } from './repository/review-repository.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ReviewEntity]),
-    OrderModule,
-    RestaurantModule,
-  ],
+  imports: [ReviewRepositoryModule, OrderModule, RestaurantModule],
   controllers: [ReviewController],
   providers: [ReviewService, ReviewRepository],
 })

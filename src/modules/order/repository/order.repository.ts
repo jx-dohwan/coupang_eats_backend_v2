@@ -1,15 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GenericTypeOrmRepository } from '../../../core/database/typeorm/generic-typeorm.repository';
 import { OrderEntity } from '../../../entities/order/order.entity';
-import { DataSource } from 'typeorm';
+import { CustomRepository } from '../../../../libs/common/typeorm.ex/typeorm-ex.decorator';
 
-@Injectable()
-export class OrderRepository extends GenericTypeOrmRepository<OrderEntity> {
-  constructor(dataSource: DataSource) {
-    super(
-      OrderEntity,
-      dataSource.createEntityManager(),
-      dataSource.createQueryRunner(),
-    );
-  }
-}
+@CustomRepository(OrderEntity)
+export class OrderRepository extends GenericTypeOrmRepository<OrderEntity> {}
