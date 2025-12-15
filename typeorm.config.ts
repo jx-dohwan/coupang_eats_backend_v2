@@ -9,6 +9,8 @@ const configDataSource = async () => {
   const nodeEnv = process.env.NODE_ENV ?? 'local';
   config({ path: `./dotenv/.env.${nodeEnv}` });
 
+  const isLocal = nodeEnv === 'local';
+
   const options: DataSourceOptions & SeederOptions = {
     type: 'mysql',
     host: process.env.DB_HOST,
@@ -18,7 +20,7 @@ const configDataSource = async () => {
     database: process.env.DB_DATABASE,
     entities: [path.join(__dirname + '/src/entities/*/*.entity.ts')],
     namingStrategy: new SnakeNamingStrategy(),
-    synchronize: false,
+    synchronize: isLocal, // local 환경이면 true, 아니면 false (배포 환경 실수 방지)
     logging: true,
     migrations: [__dirname + '/src/core/database/typeorm/migrations/*.ts'],
     migrationsRun: false,

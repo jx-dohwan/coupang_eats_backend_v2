@@ -54,10 +54,12 @@ export class TypeOrmModule {
           // 4. 환경별 엔티티 경로 분기
           // test 환경(ts-node)에서는 .ts 파일을,
           // dev/prod 환경(node)에서는 컴파일된 .js 파일을 읽도록 경로 설정
-          const entitiesPath =
-            env === Env.test
-              ? path.join(__dirname + './../../../entities/*/*.entity.ts')
-              : path.join(__dirname + './../../../entities/*/*.entity.js');
+          const isDevelopment = env === Env.test || env === Env.local;
+
+          const entitiesPath = path.join(
+            __dirname,
+            './../../../entities/**/*.entity{.ts,.js}',
+          );
 
           // TypeORM DataSource 서렂ㅇ 객체
           const options: DataSourceOptions = {
@@ -73,8 +75,8 @@ export class TypeOrmModule {
             // 5. 환경별 스키마 동기화 설정
             // test 환경에서는 스키마 자동 동기화(true)
             // dev/prod 환경에서는 마이그레이션을 사용해야 하므로 비활성화(false)
-            synchronize: env === Env.test ? true : false,
-            logging: false, // 운영 환경에서는 false, 개발 시 true로 변경 가능
+            synchronize: isDevelopment,
+            logging: true, // 운영 환경에서는 false, 개발 시 true로 변경 가능
           };
 
           return options;
