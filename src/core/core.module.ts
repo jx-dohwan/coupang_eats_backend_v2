@@ -18,9 +18,17 @@ import { ClsMiddleware } from 'nestjs-cls';
 import { RequestLoggerMiddleware } from './middleware/requestLogger.middleware';
 import { ErrorFilter } from './filter/error.filter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AwsModule } from './aws/aws.module';
 
 // CoreModule이 공통으로 관리할 모듈 목록(설정, 로거)
-const modules = [ConfigModule, LoggerModule, CacheModule, JwtModule, ClsModule];
+const modules = [
+  ConfigModule,
+  LoggerModule,
+  CacheModule,
+  JwtModule,
+  ClsModule,
+  AwsModule,
+];
 
 // CoreModule이 제공할 프로바이더 목록 (현재는 비어 있음))
 const providers: ClassProvider[] = [];
