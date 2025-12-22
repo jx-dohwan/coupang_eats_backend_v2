@@ -28,5 +28,9 @@ export const configurations = (): Configurations => {
       JWT_ACCESS_EXPIRATION: process.env.JWT_ACCESS_EXPIRATION || '',
       JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION || '',
     },
+    AWS: {
+      REGION: process.env.AWS_REGION || 'ap-northeast-2',
+      S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME || '',
+    },
   };
 };
