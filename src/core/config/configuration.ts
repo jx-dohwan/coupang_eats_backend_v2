@@ -31,6 +31,7 @@ export const configurations = (): Configurations => {
     AWS: {
       REGION: process.env.AWS_REGION || 'ap-northeast-2',
       S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME || '',
+      SES_SENDER_EMAIL: process.env.AWS_SES_SENDER_EMAIL || '',
     },
   };
 };

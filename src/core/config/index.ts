@@ -36,6 +36,7 @@ export interface JwtConfig {
 export interface AwsConfig {
   REGION: string;
   S3_BUCKET_NAME: string;
+  SES_SENDER_EMAIL: string;
 }
 
 export interface Configurations {
