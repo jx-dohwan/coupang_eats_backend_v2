@@ -5,8 +5,11 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { DishService } from './dish.service';
 import { AccessTokenGuard } from '../../core/guard/accessToken.guard';
 import { RolesGuard } from '../../core/guard/roles.guard';
@@ -22,11 +25,15 @@ import {
 } from '../../core/decorator/swagger.decorator';
 import { DishEntity } from '../../entities/dish/dish.entity';
 import { CoreOutput } from '../../common/dto/core.output';
+import { AwsS3Service } from '../../core/aws/aws-s3.service';
 
 @ApiTags('Dish (메뉴)')
 @Controller()
 export class DishController {
-  constructor(private readonly dishService: DishService) {}
+  constructor(
+    private readonly dishService: DishService,
+    private readonly awsS3Service: AwsS3Service,
+  ) {}
 
   /**
    * 메뉴 생성
@@ -37,11 +44,17 @@ export class DishController {
   @Post('restaurants/:restaurantId/dishes')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.OWNER)
+  @UseInterceptors(FileInterceptor('image'))
   async createDish(
     @CurrentUser() owner: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Body() createDishDto: CreateDishDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
+    if (file) {
+      const uploadUrl = await this.awsS3Service.uploadImage('dish', file);
+      createDishDto.photo = uploadUrl;
+    }
     return this.dishService.createDish(owner, restaurantId, createDishDto);
   }
 
