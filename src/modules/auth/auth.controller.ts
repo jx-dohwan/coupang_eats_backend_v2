@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Request,
   Response,
   UseGuards,
@@ -134,5 +136,17 @@ export class AuthController {
     this.setRefreshTokenCookie(res, tokenPair.refreshToken);
 
     return { accessToken: tokenPair.accessToken };
+  }
+
+  @ApiOperation({ summary: '이메일 인증 처리' })
+  @Public() // 로그인 없이 접근 가능해야 함
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Query('token') token: string) {
+    await this.authService.verifyEmail(token);
+    return {
+      message:
+        '이메일 인증이 성공적으로 완료되었습니다. 이제 로그인할 수 있습니다.',
+    };
   }
 }

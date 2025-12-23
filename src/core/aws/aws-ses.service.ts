@@ -9,10 +9,9 @@ export class AwsSesService {
   private readonly senderEmail: string;
 
   constructor(private readonly configService: ConfigService<Configurations>) {
-    const region = this.configService.getOrThrow('AWS.REGION', { infer: true });
-
-    // AWS IAM Role(Keyless) 인증 사용
-    this.sesClient = new SESClient({ region });
+    this.sesClient = new SESClient({
+      region: this.configService.getOrThrow('AWS.REGION', { infer: true }),
+    });
 
     // 환경변수에서 발신자 이메일 가져오기 (설정 파일에 추가 필요)
     this.senderEmail = this.configService.getOrThrow('AWS.SES_SENDER_EMAIL', {
