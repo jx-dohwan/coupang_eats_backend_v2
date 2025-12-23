@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -29,6 +30,7 @@ import {
 import { RestaurantEntity } from '../../entities/restaurant/restaurant.entity';
 import { RestaurantPaginationResponse } from './dto/restaurant-pagination.response';
 import { AwsS3Service } from '../../core/aws/aws-s3.service';
+import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 @ApiTags('Restaurant (식당)')
 @Controller('restaurants')
@@ -43,7 +45,6 @@ export class RestaurantController {
    * 1. AccessTokenGuard: 로그인 확인
    * 2. RolesGuard: Owner인지 확인
    */
-  
   @ApiDocCreated('식당 생성', RestaurantEntity)
   @Post()
   @UseGuards(AccessTokenGuard, RolesGuard)
@@ -60,6 +61,35 @@ export class RestaurantController {
     }
 
     return this.restaurantService.createRestaurant(owner, createRestaurantDto);
+  }
+
+  /**
+   * 식당 정보 수정
+   * URL: PATCH /restaurants/:id
+   */
+  @ApiDocOk('식당 정보 수정', RestaurantEntity)
+  @Patch(':id')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(Role.OWNER)
+  @UseInterceptors(FileInterceptor('image'))
+  async updateRestaurant(
+    @CurrentUser() owner: User,
+    @Param('id', ParseUUIDPipe) restaurantId: string,
+    @Body() updateRestaurantDto: UpdateRestaurantDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    // 1. 이미지 파일이 있으면 S3 업로드 후 URL 교체
+    if (file) {
+      const uploadUrl = await this.awsS3Service.uploadImage('restaurant', file);
+      updateRestaurantDto.coverImg = uploadUrl;
+    }
+
+    // 2. 서비스 호출
+    return this.restaurantService.updateRestaurant(
+      owner,
+      restaurantId,
+      updateRestaurantDto,
+    );
   }
 
   /**
