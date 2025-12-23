@@ -6,6 +6,11 @@ import { CacheKeys, CacheServiceKey } from '../../core/cache/cache.interface';
 import { CacheService } from '../../core/cache/cache.service';
 // 캐시 데코레이터 임포트
 import { Cache } from '../../core/cache/cache.decorator';
+import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  HASH_SERVICE,
+  type IHashService,
+} from '../../core/hash/hash.interface';
 
 @Injectable()
 export class UserService {
@@ -13,6 +18,7 @@ export class UserService {
     // (선택적) 수동 캐시 제어(예: del)가 필요하면 주입받을 수 있습니다.
     @Inject(CacheServiceKey) private readonly cacheService: CacheService,
     private readonly userRepository: UserRepository,
+    @Inject(HASH_SERVICE) private readonly hashService: IHashService,
   ) {}
 
   /**
@@ -31,5 +37,31 @@ export class UserService {
     const user = await this.userRepository.findByIdOrThrow(userId);
 
     return user;
+  }
+
+  /**
+   * 유저 정보 수정, 캐시 데이터 불일치 방지를 위해 수정 후 캐시를 삭제한다.
+   */
+  async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
+    // 1. 유저 조회
+    const user = await this.userRepository.findByIdOrThrow(userId);
+
+    // 2. 이름 변경
+    if (dto.name) {
+      user.name = dto.name;
+    }
+
+    // 3. 비밀번호 변경(암호화 필수)
+    if (dto.password) {
+      user.password = await this.hashService.hash(dto.password);
+    }
+
+    // 4. DB 저장
+    const updatedUser = await this.userRepository.save(user);
+
+    // 5. 캐시 무효화, 기존에 저장된 캐시를 지워야 다음 조회 때 DB에서 새 정보를 가져옴
+    await this.cacheService.del(`${CacheKeys.User}${userId}`);
+
+    return updatedUser;
   }
 }

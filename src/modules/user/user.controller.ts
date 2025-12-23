@@ -1,19 +1,35 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   UseGuards,
 } from '@nestjs/common';
 import { User } from '../../entities/user/user.entity';
 import { UserService } from './user.service';
 import { AccessTokenGuard } from '../../core/guard/accessToken.guard';
-import { ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { ApiDocOk } from '../../core/decorator/swagger.decorator';
+import { CurrentUser } from '../../core/decorator/currentUser.decorator';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly service: UserService) {}
+
+  @Patch('profile')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('access-token')
+  @ApiDocOk('내 정보 수정', User)
+  @ApiOperation({ summary: '내 정보(이름, 비밀번호) 수정' })
+  async updateProfile(
+    @CurrentUser() user: User, // 토큰에서 내 정보 추출
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.service.updateUser(user.id, dto);
+  }
 
   @Get('/:userId')
   @UseGuards(AccessTokenGuard) // 1. 가드 적용 (로그인 필요 시)
