@@ -54,7 +54,7 @@ export class AwsSesService {
     } catch (error) {
       console.error('SES Error:', error);
       throw new InternalServerErrorException(
-        '메일 발송 중 오류가 발생했습니다.',
+        `SES 실패 원인: ${error.name} - ${error.message}`
       );
     }
   }
