@@ -23,6 +23,7 @@ import {
   NOTIFICATION_SERVICE,
 } from '../../core/notification/notification.interface';
 import { NotFound } from '@aws-sdk/client-s3';
+import { CacheServiceKey } from '../../core/cache/cache.interface';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +31,7 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
     private readonly loggerService: LoggerService,
-    private readonly cacheService: CacheService,
+    @Inject(CacheServiceKey) private readonly cacheService: CacheService,
     // 의존성 역전 원칙 적용: 구현체(BcryptService) 대신 인터페이스(HASH_SERVICE) 주입
     @Inject(HASH_SERVICE) private readonly hashService: IHashService,
     @Inject(NOTIFICATION_SERVICE)
