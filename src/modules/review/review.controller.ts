@@ -1,4 +1,13 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ReviewService } from './review.service';
 import { AccessTokenGuard } from '../../core/guard/accessToken.guard';
 import { RolesGuard } from '../../core/guard/roles.guard';
@@ -8,8 +17,13 @@ import { CurrentUser } from '../../core/decorator/currentUser.decorator';
 import { User } from '../../entities/user/user.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { ApiDocCreated } from '../../core/decorator/swagger.decorator';
+import {
+  ApiDocCreated,
+  ApiDocOk,
+} from '../../core/decorator/swagger.decorator';
 import { ReviewEntity } from '../../entities/review/review.entity';
+import { UpdateReviewDto } from './dto/update-review.dto';
+import { CoreOutput } from '../../common/dto/core.output';
 
 @ApiTags('Review (리뷰)')
 @Controller('reviews')
@@ -25,5 +39,28 @@ export class ReviewController {
     @Body() createReviewDto: CreateReviewDto,
   ) {
     return this.reviewService.createReview(user, createReviewDto);
+  }
+
+  @ApiDocOk('리뷰 수정', ReviewEntity)
+  @Patch(':id')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(Role.CLIENT)
+  async updateReview(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) reviewId: string,
+    @Body() dto: UpdateReviewDto,
+  ) {
+    return this.reviewService.updateReview(user, reviewId, dto);
+  }
+
+  @ApiDocOk('리뷰 삭제', CoreOutput)
+  @Delete(':id')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(Role.CLIENT)
+  async deleteReview(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) reviewId: string,
+  ) {
+    return this.reviewService.deleteReview(user, reviewId);
   }
 }
