@@ -4,6 +4,7 @@ import {
   Delete,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UploadedFile,
   UseGuards,
@@ -26,6 +27,7 @@ import {
 import { DishEntity } from '../../entities/dish/dish.entity';
 import { CoreOutput } from '../../common/dto/core.output';
 import { AwsS3Service } from '../../core/aws/aws-s3.service';
+import { UpdateDishDto } from './dto/update-dish.dto';
 
 @ApiTags('Dish (메뉴)')
 @Controller()
@@ -56,6 +58,37 @@ export class DishController {
       createDishDto.photo = uploadUrl;
     }
     return this.dishService.createDish(owner, restaurantId, createDishDto);
+  }
+
+  /**
+   * 메뉴 수정
+   * URL: PATCH /restaurants/:restaurantId/dishes/:id
+   */
+  @ApiDocOk('메뉴 수정', DishEntity)
+  @Patch('restaurants/:restaurantId/dishes/:id')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(Role.OWNER)
+  @UseInterceptors(FileInterceptor('image'))
+  async updateDish(
+    @CurrentUser() owner: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) dishId: string,
+    @Body() updateDishDto: UpdateDishDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    // 1. 새 이미지가 업로드되었다면 S3에 올리고 URL 교체
+    if (file) {
+      const uploadUrl = await this.awsS3Service.uploadImage('dihs', file);
+      updateDishDto.photo = uploadUrl;
+    }
+
+    // 2. 서비스 호출
+    return this.dishService.updateDish(
+      owner,
+      restaurantId,
+      dishId,
+      updateDishDto,
+    );
   }
 
   /**

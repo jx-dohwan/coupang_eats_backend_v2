@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { RestaurantRepository } from './repository/restaurant.repository';
 import { CategoryRepository } from '../category/repository/category.repository';
 import { User } from '../../entities/user/user.entity';
 import { Role } from '../../entities/user/user.interface';
 import { PaginationRequest } from '../../common/pagination/pagination.request';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
+import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -16,7 +21,6 @@ export class RestaurantService {
   /**
    * 식당 생성 (점주 전용)
    */
-
   async createRestaurant(owner: User, dto: CreateRestaurantDto) {
     // 1. 권한 확인 (UserRole이 Owner인지)
     if (owner.role !== Role.OWNER) {
@@ -33,6 +37,37 @@ export class RestaurantService {
     restaurant.category = category;
 
     return this.restaurantRepository.save(restaurant);
+  }
+
+  /**
+   * 식당 정보 수정(점주 전용)
+   */
+  async updateRestaurant(
+    owner: User,
+    restaurantId: string,
+    dto: UpdateRestaurantDto,
+  ) {
+    // 1. 식당 조회(존재 여부 확인)
+    const restaurant =
+      await this.restaurantRepository.findByIdOrThrow(restaurantId);
+
+    // 2. 소유권 확인(내 식당이 맞는지)
+    if (restaurant.ownerId !== owner.id) {
+      throw new ForbiddenException('You are not the owner of this restaurant');
+    }
+
+    // 3. 카테고리 변경 시, 실제 존재하는 카테고리인지 검증
+    if (dto.categoryId) {
+      await this.categoryRepository.findByIdOrThrow(dto.categoryId);
+    }
+
+    // 4. 병합 및 저장
+    const updateRestaurant = this.restaurantRepository.create({
+      ...restaurant,
+      ...dto,
+    });
+
+    return this.restaurantRepository.save(updateRestaurant);
   }
 
   /**

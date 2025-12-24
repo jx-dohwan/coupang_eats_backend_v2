@@ -3,6 +3,7 @@ import { DishRepository } from './repository/dish.repository';
 import { RestaurantRepository } from '../restaurant/repository/restaurant.repository';
 import { CreateDishDto } from './dto/create-dish.dto';
 import { User } from '../../entities/user/user.entity';
+import { UpdateDishDto } from './dto/update-dish.dto';
 
 @Injectable()
 export class DishService {
@@ -28,6 +29,36 @@ export class DishService {
     const dish = dto.toEntity(restaurantId);
 
     return this.dishRepository.save(dish);
+  }
+
+  /**
+   * 메뉴 수정
+   */
+  async updateDish(
+    owner: User,
+    restaurantId: string,
+    dishId: string,
+    dto: UpdateDishDto,
+  ) {
+    // 1. 메뉴 조회, 식당 주인이 확인해야 하므로 restaurant 관계를 함께 로드
+    const dish = await this.dishRepository.findOneWithOmitNotJoinedPropsOrThrow(
+      { id: dishId, restaurantId }, // dishId와 restaurantId가 모두 일치하는지 확인
+      { restaurant: true },
+    );
+
+    // 2. 소유권 확인
+    if (dish.restaurant.ownerId !== owner.id) {
+      throw new ForbiddenException('You cannot update this dish');
+    }
+
+    // 3. 엔티티 병합(기존dish + 수정된 dto), create로 객체를 병합하여 새 인스턴스를 반환
+    const updateDish = this.dishRepository.create({
+      ...dish,
+      ...dto,
+    });
+
+    // 4. 저장
+    return this.dishRepository.save(updateDish);
   }
 
   /**
