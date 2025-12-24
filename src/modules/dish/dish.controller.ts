@@ -78,7 +78,7 @@ export class DishController {
   ) {
     // 1. 새 이미지가 업로드되었다면 S3에 올리고 URL 교체
     if (file) {
-      const uploadUrl = await this.awsS3Service.uploadImage('dihs', file);
+      const uploadUrl = await this.awsS3Service.uploadImage('dish', file);
       updateDishDto.photo = uploadUrl;
     }
 

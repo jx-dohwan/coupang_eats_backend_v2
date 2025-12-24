@@ -106,11 +106,8 @@ export class AuthService {
       );
     }
 
-    // 2. 유저 찾기
-    const user = await this.userRepository.findOneByFilters({ email });
-    if (!user) {
-      throw new NotFoundException('유저를 찾을 수 없습니다.');
-    }
+    // 2. [최적화] 유저 찾기 (없으면 404 자동 발생)
+    const user = await this.userRepository.findOneOrThrow({ email });
 
     // 3. 이미 인증된 유저는 패스
     if (user.verified) {
