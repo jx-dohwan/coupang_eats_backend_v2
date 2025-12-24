@@ -40,9 +40,14 @@ export class OrderService {
       dto.restaurantId,
     );
 
-    // 2. 메뉴 목록 일괄 조회
+    // 2. [수정] 메뉴 목록 조회 (옵션 포함 필수)
+    // findByIds는 relations를 지원하지 않으므로 findManyWithOmitNotJoinedProps 사용
     const dishIds = dto.items.map((item) => item.dishId);
-    const dishes = await this.dishRepository.findByIds(dishIds);
+
+    const dishes = await this.dishRepository.findManyWithOmitNotJoinedProps(
+      { id: In(dishIds) }, // where 조건
+      { options: true }, // relations: 옵션 가격 계산을 위해 필수
+    );
 
     // [트랜잭션 시작]
     const order = await this.dataSource.transaction(async (manager) => {
@@ -68,7 +73,7 @@ export class OrderService {
       // 배달비 추가
       finalTotal += restaurant.deliveryFee;
 
-      // 4. [리팩토링] 최종 주문 객체 생성 (DTO에게 위임)
+      // 4. 최종 주문 객체 생성
       const orderEntity = dto.toEntity(
         customer,
         restaurant,
@@ -81,7 +86,7 @@ export class OrderService {
     });
     // [트랜잭션 종료]
 
-    // ✅ [Socket] 실시간 알림: 식당 주인에게 "새 주문 대기중" 알림 발송
+    // [Socket] 실시간 알림
     const ownerRoom = `Owner:${restaurant.ownerId}`;
     this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
       orderId: order.id,
