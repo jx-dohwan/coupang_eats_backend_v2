@@ -4,6 +4,7 @@ import { DishRepository } from './repository/dish.repository';
 import { RestaurantRepository } from '../restaurant/repository/restaurant.repository';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CreateDishDto } from './dto/create-dish.dto';
+import { UpdateDishDto } from './dto/update-dish.dto'; // Import 추가
 import { User } from '../../entities/user/user.entity';
 import { DishEntity } from '../../entities/dish/dish.entity';
 
@@ -12,6 +13,7 @@ const mockDishRepository = {
   save: jest.fn(),
   findOneWithOmitNotJoinedPropsOrThrow: jest.fn(),
   softDelete: jest.fn(),
+  create: jest.fn(), // [NEW] updateDish에서 사용하므로 추가 필수
 };
 
 const mockRestaurantRepository = {
@@ -104,6 +106,91 @@ describe('DishService', () => {
 
       await expect(
         service.createDish(owner, restaurantId, createDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // [NEW] updateDish 테스트 추가
+  describe('updateDish', () => {
+    const owner = { id: 'owner-1' } as User;
+    const otherUser = { id: 'other-1' } as User;
+    const restaurantId = 'res-1';
+    const dishId = 'dish-1';
+    const updateDto: UpdateDishDto = { price: 2000 };
+
+    it('본인 식당의 메뉴를 수정하면 성공해야 한다', async () => {
+      // Arrange
+      const existingDish = {
+        id: dishId,
+        restaurantId,
+        price: 1000,
+        restaurant: { ownerId: 'owner-1' },
+      } as DishEntity;
+
+      const updatedDish = { ...existingDish, ...updateDto };
+
+      // Mock Setup
+      dishRepository.findOneWithOmitNotJoinedPropsOrThrow.mockResolvedValue(
+        existingDish,
+      );
+      dishRepository.create.mockReturnValue(updatedDish); // 병합 결과
+      dishRepository.save.mockResolvedValue(updatedDish); // 저장 결과
+
+      // Act
+      const result = await service.updateDish(
+        owner,
+        restaurantId,
+        dishId,
+        updateDto,
+      );
+
+      // Assert
+      // 1. 조회 확인
+      expect(
+        dishRepository.findOneWithOmitNotJoinedPropsOrThrow,
+      ).toHaveBeenCalledWith(
+        { id: dishId, restaurantId },
+        { restaurant: true },
+      );
+
+      // 2. create(병합) 호출 확인
+      expect(dishRepository.create).toHaveBeenCalledWith({
+        ...existingDish,
+        ...updateDto,
+      });
+
+      // 3. save 호출 확인
+      expect(dishRepository.save).toHaveBeenCalledWith(updatedDish);
+      expect(result.price).toBe(2000);
+    });
+
+    it('본인 식당의 메뉴가 아니면 ForbiddenException을 던져야 한다', async () => {
+      // Arrange
+      const existingDish = {
+        id: dishId,
+        restaurantId,
+        restaurant: { ownerId: 'owner-1' },
+      } as DishEntity;
+
+      dishRepository.findOneWithOmitNotJoinedPropsOrThrow.mockResolvedValue(
+        existingDish,
+      );
+
+      // Act & Assert (다른 유저가 요청)
+      await expect(
+        service.updateDish(otherUser, restaurantId, dishId, updateDto),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(dishRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('메뉴가 존재하지 않으면 NotFoundException이 전파되어야 한다', async () => {
+      dishRepository.findOneWithOmitNotJoinedPropsOrThrow.mockRejectedValue(
+        new NotFoundException(),
+      );
+
+      await expect(
+        service.updateDish(owner, restaurantId, dishId, updateDto),
       ).rejects.toThrow(NotFoundException);
     });
   });

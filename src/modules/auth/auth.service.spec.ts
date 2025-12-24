@@ -7,7 +7,10 @@ import { LoggerService } from '../../core/logger/logger.service';
 import { HASH_SERVICE } from '../../core/hash/hash.interface';
 import { User } from '../../entities/user/user.entity';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { CacheServiceKey } from '../../core/cache/cache.interface';
+import { NOTIFICATION_SERVICE } from '../../core/notification/notification.interface';
 
+// @Transactional 데코레이터 Mocking
 jest.mock('typeorm-transactional', () => ({
   Transactional: () => () => {},
 }));
@@ -16,11 +19,15 @@ describe('AuthService', () => {
   let service: AuthService;
   let userRepository: jest.Mocked<UserRepository>;
   let tokenService: jest.Mocked<TokenService>;
-  let hashService: any; // Mocked Interface
+  let hashService: any;
+  let cacheService: any;
+  let notificationService: any;
 
   beforeEach(async () => {
+    // 1. Mock 객체 정의
     const mockUserRepository = {
       findOneByFilters: jest.fn(),
+      findOneOrThrow: jest.fn(), // 추가됨
       save: jest.fn(),
     };
     const mockTokenService = {
@@ -35,6 +42,16 @@ describe('AuthService', () => {
       compare: jest.fn(),
       hash: jest.fn(),
     };
+    // [NEW] CacheService Mock
+    const mockCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+    };
+    // [NEW] NotificationService Mock
+    const mockNotificationService = {
+      sendWelcomeNotification: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,6 +60,9 @@ describe('AuthService', () => {
         { provide: TokenService, useValue: mockTokenService },
         { provide: LoggerService, useValue: mockLoggerService },
         { provide: HASH_SERVICE, useValue: mockHashService },
+        // [NEW] 의존성 주입 추가
+        { provide: CacheServiceKey, useValue: mockCacheService },
+        { provide: NOTIFICATION_SERVICE, useValue: mockNotificationService },
       ],
     }).compile();
 
@@ -50,6 +70,8 @@ describe('AuthService', () => {
     userRepository = module.get(UserRepository);
     tokenService = module.get(TokenService);
     hashService = module.get(HASH_SERVICE);
+    cacheService = module.get(CacheServiceKey);
+    notificationService = module.get(NOTIFICATION_SERVICE);
   });
 
   describe('validateUser', () => {
@@ -82,10 +104,10 @@ describe('AuthService', () => {
     const signUpBody: any = {
       email: 'new@test.com',
       password: '123',
-      toEntity: jest.fn().mockReturnValue({}), // Entity 변환 Mock
+      toEntity: jest.fn().mockReturnValue({}),
     };
 
-    it('정상적인 회원가입 시 리포지토리에 저장되어야 한다.', async () => {
+    it('정상적인 회원가입 시 리포지토리에 저장되고 캐시/알림이 호출되어야 한다.', async () => {
       userRepository.findOneByFilters.mockResolvedValue(null); // 중복 없음
       hashService.hash.mockResolvedValue('hashed_123');
 
@@ -96,6 +118,9 @@ describe('AuthService', () => {
       });
       expect(hashService.hash).toHaveBeenCalledWith(signUpBody.password);
       expect(userRepository.save).toHaveBeenCalled();
+      // 추가된 로직 검증
+      expect(cacheService.set).toHaveBeenCalled(); // 이메일 인증 토큰 저장
+      expect(notificationService.sendWelcomeNotification).toHaveBeenCalled(); // 메일 발송
     });
 
     it('이미 존재하는 이메일이면 ConflictException을 던져야 한다.', async () => {
@@ -109,8 +134,7 @@ describe('AuthService', () => {
 
   describe('signIn', () => {
     it('로그인 성공 시 토큰 쌍을 반환해야 한다.', async () => {
-      const user = { id: 'user-1' } as User;
-      // validateUser 내부 로직  Mocking 대신 spyOn 활용가능하지만 여기선 리포지토리/해시 Mocking으로 간접 테스트
+      const user = { id: 'user-1', verified: true } as User; // verified: true 필수
       userRepository.findOneByFilters.mockResolvedValue(user);
       hashService.compare.mockResolvedValue(true);
       tokenService.generateTokenPair.mockResolvedValue({
@@ -126,7 +150,17 @@ describe('AuthService', () => {
       expect(result).toEqual({ accessToken: 'a', refreshToken: 'r' });
     });
 
-    it('유저 검증 실패 시 UnauthrizedException을 던져야 한다.', async () => {
+    it('이메일 인증이 안 된 유저는 UnauthorizedException을 던져야 한다', async () => {
+      const user = { id: 'user-1', verified: false } as User; // verified: false
+      userRepository.findOneByFilters.mockResolvedValue(user);
+      hashService.compare.mockResolvedValue(true);
+
+      await expect(
+        service.signIn({ email: 't@t.com', password: 'p' } as any),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('유저 검증 실패 시 UnauthorizedException을 던져야 한다.', async () => {
       userRepository.findOneByFilters.mockResolvedValue(null); // 유저 없음
 
       await expect(
