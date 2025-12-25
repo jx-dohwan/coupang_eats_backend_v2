@@ -12,7 +12,6 @@ import { User } from '../../entities/user/user.entity';
 import { TokenPair } from '../../core/jwt/jwt.interface';
 import { LoggerService } from '../../core/logger/logger.service';
 import { HASH_SERVICE } from '../../core/hash/hash.interface';
-import { Transactional } from 'typeorm-transactional';
 import type { IHashService } from '../../core/hash/hash.interface';
 import { SignUpBody } from './dto/request/signUp.body';
 import { UserRepository } from '../user/repository/user.repository';
@@ -66,7 +65,6 @@ export class AuthService {
    * [회원가입] 유저 생성
    * @Transactional 데코레이터로 DB 작업 원자성 보장
    */
-  @Transactional()
   async signUp(body: SignUpBody): Promise<void> {
     const { email, password } = body;
 
@@ -94,7 +92,6 @@ export class AuthService {
   /**
    * 이메일 인증 확인, 유저가 메일 링크를 클릭하면 이 함수가 실행
    */
-  @Transactional()
   async verifyEmail(token: string): Promise<void> {
     const redisKey = `email-verify:${token}`;
 

@@ -15,6 +15,10 @@ process.env.DB_DATABASE = 'coupang_test'; // 중요: 테스트용 DB 이름
 
 // 3. 기타 설정
 process.env.NODE_ENV = 'test';
+process.env.AWS_REGION = 'ap-northeast-2';
+process.env.AWS_S3_BUCKET_NAME='coupang-eats-uploads-prod';
+process.env.AWS_SES_SENDER_EMAIL='jx7789@naver.com';
+process.env.BASE_URL='http://localhost:3000';
 
 console.log('✅ [Test Setup] 환경변수가 강제로 설정되었습니다 (Memory)');
 console.log(`   - JWT Secret: ${process.env.JWT_ACCESS_SECRET}`);
