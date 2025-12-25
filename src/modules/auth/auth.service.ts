@@ -23,10 +23,12 @@ import {
 } from '../../core/notification/notification.interface';
 import { NotFound } from '@aws-sdk/client-s3';
 import { CacheServiceKey } from '../../core/cache/cache.interface';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly dataSource: DataSource,
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
     private readonly loggerService: LoggerService,
@@ -76,10 +78,13 @@ export class AuthService {
     // 2. 비밀번호 암호화 (Hashing)
     const hashedPassword = await this.hashService.hash(password);
 
-    // 3. 유저 저장
-    await this.userRepository.save(body.toEntity(hashedPassword));
+    // 트랜잭션 적용
+    await this.dataSource.transaction(async (manager) => {
+      const trUserRepo = manager.withRepository(this.userRepository);
+      await trUserRepo.save(body.toEntity(hashedPassword));
+    });
 
-    // 4. 인증 토큰 생성 및 메일 발송
+    // 외부 서비스(Redis, Email)는 DB 트랜잭션 성공 후 실행
     const token = uuidv4();
     await this.cacheService.set(`email-verify:${token}`, email, 300);
     await this.notificationService.sendWelcomeNotification(

@@ -10,10 +10,12 @@ import { Role } from '../../entities/user/user.interface';
 import { PaginationRequest } from '../../common/pagination/pagination.request';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class RestaurantService {
   constructor(
+    private readonly dataSource: DataSource,
     private readonly restaurantRepository: RestaurantRepository,
     private readonly categoryRepository: CategoryRepository,
   ) {}
@@ -22,21 +24,25 @@ export class RestaurantService {
    * 식당 생성 (점주 전용)
    */
   async createRestaurant(owner: User, dto: CreateRestaurantDto) {
-    // 1. 권한 확인 (UserRole이 Owner인지)
     if (owner.role !== Role.OWNER) {
       throw new UnauthorizedException('Only owners can create restaurants');
     }
 
-    // 2. 카테고리 존재 여부 확인(없으면 404 에러 자동 발생)
-    const category = await this.categoryRepository.findByIdOrThrow(
-      dto.categoryId,
-    );
+    // [2] 트랜잭션 시작
+    return await this.dataSource.transaction(async (manager) => {
+      // [3] 트랜잭션용 레포지토리 획득 (매우 중요)
+      const trCategoryRepo = manager.withRepository(this.categoryRepository);
+      const trRestaurantRepo = manager.withRepository(
+        this.restaurantRepository,
+      );
 
-    // 3. 식당 객체 저장
-    const restaurant = dto.toEntity(owner.id);
-    restaurant.category = category;
+      const category = await trCategoryRepo.findByIdOrThrow(dto.categoryId);
 
-    return this.restaurantRepository.save(restaurant);
+      const restaurant = dto.toEntity(owner.id);
+      restaurant.category = category;
+
+      return await trRestaurantRepo.save(restaurant);
+    });
   }
 
   /**

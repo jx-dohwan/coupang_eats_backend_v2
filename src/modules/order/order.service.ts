@@ -35,45 +35,40 @@ export class OrderService {
    * - 주문 생성 후 Owner에게 실시간 알림 전송
    */
   async createOrder(customer: User, dto: CreateOrderDto) {
-    // 1. 식당 조회
+    // 1. 조회는 트랜잭션 밖에서 해도 무방 (성능 최적화)
     const restaurant = await this.restaurantRepository.findByIdOrThrow(
       dto.restaurantId,
     );
-
-    // 2. [수정] 메뉴 목록 조회 (옵션 포함 필수)
-    // findByIds는 relations를 지원하지 않으므로 findManyWithOmitNotJoinedProps 사용
     const dishIds = dto.items.map((item) => item.dishId);
-
     const dishes = await this.dishRepository.findManyWithOmitNotJoinedProps(
-      { id: In(dishIds) }, // where 조건
-      { options: true }, // relations: 옵션 가격 계산을 위해 필수
+      { id: In(dishIds) },
+      { options: true },
     );
 
-    // [트랜잭션 시작]
-    const order = await this.dataSource.transaction(async (manager) => {
+    // 2. 트랜잭션 시작
+    return await this.dataSource.transaction(async (manager) => {
+      // [핵심] 커스텀 레포지토리에 트랜잭션 매니저 주입
+      const trOrderItemRepo = manager.withRepository(this.orderItemRepository);
+      const trOrderRepo = manager.withRepository(this.orderRepository);
+
       let finalTotal = 0;
       const orderItems: OrderItemEntity[] = [];
 
-      // 3. 주문 아이템 처리 루프
       for (const itemDto of dto.items) {
         const dish = dishes.find((d) => d.id === itemDto.dishId);
         if (!dish)
           throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
 
-        // [Helper 호출] 가격 계산 및 아이템 엔티티 생성
         const { orderItem, itemPrice } = this.processOrderItem(itemDto, dish);
 
-        // 아이템 저장
-        await manager.save(OrderItemEntity, orderItem);
+        // 커스텀 레포지토리의 save 사용
+        await trOrderItemRepo.save(orderItem);
 
         orderItems.push(orderItem);
         finalTotal += itemPrice;
       }
 
-      // 배달비 추가
       finalTotal += restaurant.deliveryFee;
-
-      // 4. 최종 주문 객체 생성
       const orderEntity = dto.toEntity(
         customer,
         restaurant,
@@ -81,20 +76,8 @@ export class OrderService {
         orderItems,
       );
 
-      // 주문 저장
-      return manager.save(OrderEntity, orderEntity);
+      return await trOrderRepo.save(orderEntity);
     });
-    // [트랜잭션 종료]
-
-    // [Socket] 실시간 알림
-    const ownerRoom = `Owner:${restaurant.ownerId}`;
-    this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
-      orderId: order.id,
-      restaurantId: restaurant.id,
-      total: order.total,
-    });
-
-    return order;
   }
 
   /**
