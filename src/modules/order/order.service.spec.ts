@@ -1,80 +1,88 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RestaurantService } from '../restaurant/restaurant.service'; 
+import { OrderService } from './order.service';
 import { DataSource } from 'typeorm';
+import { OrderRepository } from './repository/order.repository';
+import { OrderItemRepository } from './repository/order-item.repository';
 import { RestaurantRepository } from '../restaurant/repository/restaurant.repository';
-import { CategoryRepository } from '../category/repository/category.repository';
+import { DishRepository } from '../dish/repository/dish.repository';
+import { EventsGateway } from '../../events/events.gateway';
+import { NotFoundException } from '@nestjs/common';
 import { User } from '../../entities/user/user.entity';
-import { Role } from '../../entities/user/user.interface';
-import { UnauthorizedException } from '@nestjs/common';
 
-describe('RestaurantService', () => {
-  let service: RestaurantService;
+describe('OrderService', () => {
+  let service: OrderService;
   let dataSource: any;
   let restaurantRepo: any;
-  let categoryRepo: any;
+  let dishRepo: any;
+  let orderRepo: any;
+  let orderItemRepo: any;
+  let eventsGateway: any;
+
+  // ✅ 소켓 체이닝을 완벽히 지원하는 가짜 서버
+  const mockServer = {
+    to: jest.fn().mockReturnThis(),
+    emit: jest.fn().mockReturnThis(),
+  };
 
   const mockEntityManager = {
     withRepository: jest.fn().mockImplementation((repo) => repo),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((entity, data) => Promise.resolve({ id: 'saved-id', ...data })),
   };
 
   const mockDataSource = {
-    transaction: jest
-      .fn()
-      .mockImplementation(async (cb) => cb(mockEntityManager)),
+    transaction: jest.fn().mockImplementation(async (cb) => cb(mockEntityManager)),
   };
 
   beforeEach(async () => {
-    const mockRestaurantRepo = {
-      save: jest.fn(),
-      findByIdOrThrow: jest.fn(),
-      findMany: jest.fn(),
-      paginate: jest.fn(),
-      findOneWithOmitNotJoinedPropsOrThrow: jest.fn(),
-    };
-    const mockCategoryRepo = { findByIdOrThrow: jest.fn() };
+    const mockOrderRepo = { save: jest.fn(), findManyWithOmitNotJoinedProps: jest.fn(), findOneWithOmitNotJoinedPropsOrThrow: jest.fn() };
+    const mockOrderItemRepo = { save: jest.fn() };
+    const mockRestaurantRepo = { findByIdOrThrow: jest.fn() };
+    const mockDishRepo = { findManyWithOmitNotJoinedProps: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        RestaurantService,
+        OrderService,
         { provide: DataSource, useValue: mockDataSource },
+        { provide: OrderRepository, useValue: mockOrderRepo },
+        { provide: OrderItemRepository, useValue: mockOrderItemRepo },
         { provide: RestaurantRepository, useValue: mockRestaurantRepo },
-        { provide: CategoryRepository, useValue: mockCategoryRepo },
+        { provide: DishRepository, useValue: mockDishRepo },
+        { provide: EventsGateway, useValue: { server: mockServer } },
       ],
     }).compile();
 
-    service = module.get<RestaurantService>(RestaurantService);
+    service = module.get<OrderService>(OrderService);
     dataSource = module.get(DataSource);
     restaurantRepo = module.get(RestaurantRepository);
-    categoryRepo = module.get(CategoryRepository);
+    dishRepo = module.get(DishRepository);
+    orderRepo = module.get(OrderRepository);
+    orderItemRepo = module.get(OrderItemRepository);
+    eventsGateway = module.get(EventsGateway);
+
+    jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+  describe('createOrder', () => {
+    it('주문이 정상적으로 생성되고 소켓 알림이 전송되어야 한다', async () => {
+      const customer = { id: 'user-1' } as User;
+      const dto: any = {
+        restaurantId: 'rest-1',
+        items: [{ dishId: 'dish-1', options: [], toEntity: jest.fn().mockReturnValue({}) }],
+        toEntity: jest.fn().mockReturnValue({ id: 'order-1', total: 11000 }),
+      };
 
-  describe('createRestaurant', () => {
-    const owner = { id: 'owner-1', role: Role.OWNER } as User;
-    const dto: any = {
-      categoryId: 'cat-1',
-      toEntity: jest.fn().mockReturnValue({}),
-    };
+      restaurantRepo.findByIdOrThrow.mockResolvedValue({ id: 'rest-1', ownerId: 'owner-1', deliveryFee: 1000 });
+      dishRepo.findManyWithOmitNotJoinedProps.mockResolvedValue([{ id: 'dish-1', price: 10000 }]);
+      orderRepo.save.mockResolvedValue({ id: 'order-1', total: 11000 });
 
-    it('점주가 식당을 생성하면 성공해야 한다', async () => {
-      categoryRepo.findByIdOrThrow.mockResolvedValue({ id: 'cat-1' });
-      restaurantRepo.save.mockResolvedValue({ id: 'rest-1' });
-
-      await service.createRestaurant(owner, dto);
+      await service.createOrder(customer, dto);
 
       expect(dataSource.transaction).toHaveBeenCalled();
-      expect(restaurantRepo.save).toHaveBeenCalled();
-    });
-
-    it('점주가 아니면 UnauthorizedException을 던져야 한다', async () => {
-      const client = { role: Role.CLIENT } as User;
-      await expect(service.createRestaurant(client, dto)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      expect(orderRepo.save).toHaveBeenCalled();
+      
+      // ✅ 이제 이 부분들이 0 calls 에러 없이 통과됩니다!
+      expect(mockServer.to).toHaveBeenCalledWith('Owner:owner-1');
+      expect(mockServer.emit).toHaveBeenCalledWith('newPendingOrder', expect.anything());
     });
   });
 });

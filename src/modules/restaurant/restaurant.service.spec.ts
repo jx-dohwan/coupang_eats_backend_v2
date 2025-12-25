@@ -19,13 +19,11 @@ describe('RestaurantService', () => {
   };
 
   const mockDataSource = {
-    transaction: jest
-      .fn()
-      .mockImplementation(async (cb) => cb(mockEntityManager)),
+    transaction: jest.fn().mockImplementation(async (cb) => cb(mockEntityManager)),
   };
 
   beforeEach(async () => {
-    const mockRestaurantRepo = { save: jest.fn(), findByIdOrThrow: jest.fn() };
+    const mockRestaurantRepo = { save: jest.fn(), findByIdOrThrow: jest.fn(), findMany: jest.fn(), paginate: jest.fn() };
     const mockCategoryRepo = { findByIdOrThrow: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -43,14 +41,15 @@ describe('RestaurantService', () => {
     categoryRepo = module.get(CategoryRepository);
   });
 
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
   describe('createRestaurant', () => {
     const owner = { id: 'owner-1', role: Role.OWNER } as User;
-    const dto: any = {
-      categoryId: 'cat-1',
-      toEntity: jest.fn().mockReturnValue({}),
-    };
+    const dto: any = { categoryId: 'cat-1', toEntity: jest.fn().mockReturnValue({}) };
 
-    it('점주가 식당을 생성하면 트랜잭션을 통해 저장되어야 한다', async () => {
+    it('점주가 식당을 생성하면 성공해야 한다', async () => {
       categoryRepo.findByIdOrThrow.mockResolvedValue({ id: 'cat-1' });
       restaurantRepo.save.mockResolvedValue({ id: 'rest-1' });
 
@@ -60,11 +59,9 @@ describe('RestaurantService', () => {
       expect(restaurantRepo.save).toHaveBeenCalled();
     });
 
-    it('점주가 아니면 에러를 던져야 한다', async () => {
+    it('점주가 아니면 UnauthorizedException을 던져야 한다', async () => {
       const client = { role: Role.CLIENT } as User;
-      await expect(service.createRestaurant(client, dto)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.createRestaurant(client, dto)).rejects.toThrow(UnauthorizedException);
     });
   });
 });

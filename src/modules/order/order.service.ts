@@ -35,19 +35,15 @@ export class OrderService {
    * - 주문 생성 후 Owner에게 실시간 알림 전송
    */
   async createOrder(customer: User, dto: CreateOrderDto) {
-    // 1. 조회는 트랜잭션 밖에서 해도 무방 (성능 최적화)
-    const restaurant = await this.restaurantRepository.findByIdOrThrow(
-      dto.restaurantId,
-    );
+    const restaurant = await this.restaurantRepository.findByIdOrThrow(dto.restaurantId);
     const dishIds = dto.items.map((item) => item.dishId);
     const dishes = await this.dishRepository.findManyWithOmitNotJoinedProps(
       { id: In(dishIds) },
       { options: true },
     );
 
-    // 2. 트랜잭션 시작
-    return await this.dataSource.transaction(async (manager) => {
-      // [핵심] 커스텀 레포지토리에 트랜잭션 매니저 주입
+    //  1. 트랜잭션 실행 결과를 변수(order)에 담습니다.
+    const order = await this.dataSource.transaction(async (manager) => {
       const trOrderItemRepo = manager.withRepository(this.orderItemRepository);
       const trOrderRepo = manager.withRepository(this.orderRepository);
 
@@ -56,12 +52,9 @@ export class OrderService {
 
       for (const itemDto of dto.items) {
         const dish = dishes.find((d) => d.id === itemDto.dishId);
-        if (!dish)
-          throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
+        if (!dish) throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
 
         const { orderItem, itemPrice } = this.processOrderItem(itemDto, dish);
-
-        // 커스텀 레포지토리의 save 사용
         await trOrderItemRepo.save(orderItem);
 
         orderItems.push(orderItem);
@@ -69,15 +62,21 @@ export class OrderService {
       }
 
       finalTotal += restaurant.deliveryFee;
-      const orderEntity = dto.toEntity(
-        customer,
-        restaurant,
-        finalTotal,
-        orderItems,
-      );
+      const orderEntity = dto.toEntity(customer, restaurant, finalTotal, orderItems);
 
       return await trOrderRepo.save(orderEntity);
     });
+
+    //  2. 트랜잭션이 성공적으로 끝난 후 점주에게 알림을 보냅니다 (이 코드가 반드시 필요함!)
+    const ownerRoom = `Owner:${restaurant.ownerId}`;
+    this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
+      orderId: order.id,
+      restaurantId: restaurant.id,
+      total: order.total,
+    });
+
+    //  3. 마지막으로 생성된 주문 객체를 반환합니다.
+    return order;
   }
 
   /**
