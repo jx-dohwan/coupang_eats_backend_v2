@@ -1,4 +1,3 @@
-import { Transactional } from 'typeorm-transactional';
 import { AuthService } from './auth.service';
 import { UserRepository } from '../user/repository/user.repository';
 import { TokenService } from '../../core/jwt/jwt.service';
@@ -9,11 +8,7 @@ import { User } from '../../entities/user/user.entity';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CacheServiceKey } from '../../core/cache/cache.interface';
 import { NOTIFICATION_SERVICE } from '../../core/notification/notification.interface';
-
-// @Transactional 데코레이터 Mocking
-jest.mock('typeorm-transactional', () => ({
-  Transactional: () => () => {},
-}));
+import { DataSource } from 'typeorm'; // 추가
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,12 +17,27 @@ describe('AuthService', () => {
   let hashService: any;
   let cacheService: any;
   let notificationService: any;
+  let dataSource: any;
+
+  // [핵심] 트랜잭션을 위한 Mock EntityManager 정의
+  const mockEntityManager = {
+    // withRepository가 호출되면 인자로 받은 원래의 repository를 그대로 반환하도록 설정
+    withRepository: jest.fn().mockImplementation((repo) => repo),
+    save: jest.fn(),
+  };
+
+  // [핵심] DataSource.transaction Mocking
+  const mockDataSource = {
+    // transaction 메서드가 실행되면 콜백 함수(manager => ...)를 실행시키고 
+    // 위에서 만든 mockEntityManager를 전달합니다.
+    transaction: jest.fn().mockImplementation((cb) => cb(mockEntityManager)),
+  };
 
   beforeEach(async () => {
     // 1. Mock 객체 정의
     const mockUserRepository = {
       findOneByFilters: jest.fn(),
-      findOneOrThrow: jest.fn(), // 추가됨
+      findOneOrThrow: jest.fn(),
       save: jest.fn(),
     };
     const mockTokenService = {
@@ -42,13 +52,11 @@ describe('AuthService', () => {
       compare: jest.fn(),
       hash: jest.fn(),
     };
-    // [NEW] CacheService Mock
     const mockCacheService = {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn(),
     };
-    // [NEW] NotificationService Mock
     const mockNotificationService = {
       sendWelcomeNotification: jest.fn(),
     };
@@ -56,11 +64,12 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        // [추가] DataSource 의존성 주입
+        { provide: DataSource, useValue: mockDataSource },
         { provide: UserRepository, useValue: mockUserRepository },
         { provide: TokenService, useValue: mockTokenService },
         { provide: LoggerService, useValue: mockLoggerService },
         { provide: HASH_SERVICE, useValue: mockHashService },
-        // [NEW] 의존성 주입 추가
         { provide: CacheServiceKey, useValue: mockCacheService },
         { provide: NOTIFICATION_SERVICE, useValue: mockNotificationService },
       ],
@@ -72,6 +81,7 @@ describe('AuthService', () => {
     hashService = module.get(HASH_SERVICE);
     cacheService = module.get(CacheServiceKey);
     notificationService = module.get(NOTIFICATION_SERVICE);
+    dataSource = module.get(DataSource);
   });
 
   describe('validateUser', () => {
@@ -93,7 +103,7 @@ describe('AuthService', () => {
     it('비밀번호가 틀리면 null을 반환해야 한다.', async () => {
       const user = { id: '1', password: 'hashed_password' } as User;
       userRepository.findOneByFilters.mockResolvedValue(user);
-      hashService.compare.mockResolvedValue(false); // 불일치
+      hashService.compare.mockResolvedValue(false);
 
       const result = await service.validateUser('test@test.com', 'wrong');
       expect(result).toBeNull();
@@ -104,23 +114,28 @@ describe('AuthService', () => {
     const signUpBody: any = {
       email: 'new@test.com',
       password: '123',
-      toEntity: jest.fn().mockReturnValue({}),
+      toEntity: jest.fn().mockReturnValue({ id: 'new-id' }),
     };
 
     it('정상적인 회원가입 시 리포지토리에 저장되고 캐시/알림이 호출되어야 한다.', async () => {
-      userRepository.findOneByFilters.mockResolvedValue(null); // 중복 없음
+      userRepository.findOneByFilters.mockResolvedValue(null);
       hashService.hash.mockResolvedValue('hashed_123');
 
       await service.signUp(signUpBody);
 
+      // 트랜잭션이 호출되었는지 확인
+      expect(dataSource.transaction).toHaveBeenCalled();
+      
       expect(userRepository.findOneByFilters).toHaveBeenCalledWith({
         email: signUpBody.email,
       });
       expect(hashService.hash).toHaveBeenCalledWith(signUpBody.password);
+      
+      // 트랜잭션 내에서 리포지토리가 사용되었는지 검증
       expect(userRepository.save).toHaveBeenCalled();
-      // 추가된 로직 검증
-      expect(cacheService.set).toHaveBeenCalled(); // 이메일 인증 토큰 저장
-      expect(notificationService.sendWelcomeNotification).toHaveBeenCalled(); // 메일 발송
+      
+      expect(cacheService.set).toHaveBeenCalled();
+      expect(notificationService.sendWelcomeNotification).toHaveBeenCalled();
     });
 
     it('이미 존재하는 이메일이면 ConflictException을 던져야 한다.', async () => {
@@ -134,7 +149,7 @@ describe('AuthService', () => {
 
   describe('signIn', () => {
     it('로그인 성공 시 토큰 쌍을 반환해야 한다.', async () => {
-      const user = { id: 'user-1', verified: true } as User; // verified: true 필수
+      const user = { id: 'user-1', verified: true } as User;
       userRepository.findOneByFilters.mockResolvedValue(user);
       hashService.compare.mockResolvedValue(true);
       tokenService.generateTokenPair.mockResolvedValue({
@@ -151,7 +166,7 @@ describe('AuthService', () => {
     });
 
     it('이메일 인증이 안 된 유저는 UnauthorizedException을 던져야 한다', async () => {
-      const user = { id: 'user-1', verified: false } as User; // verified: false
+      const user = { id: 'user-1', verified: false } as User;
       userRepository.findOneByFilters.mockResolvedValue(user);
       hashService.compare.mockResolvedValue(true);
 
@@ -161,7 +176,7 @@ describe('AuthService', () => {
     });
 
     it('유저 검증 실패 시 UnauthorizedException을 던져야 한다.', async () => {
-      userRepository.findOneByFilters.mockResolvedValue(null); // 유저 없음
+      userRepository.findOneByFilters.mockResolvedValue(null);
 
       await expect(
         service.signIn({ email: 't@t.com', password: 'p' } as any),

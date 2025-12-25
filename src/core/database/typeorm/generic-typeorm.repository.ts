@@ -32,7 +32,7 @@ export class GenericTypeOrmRepository<
   constructor(
     target: EntityTarget<T>,
     manager: EntityManager,
-    queryRunner: QueryRunner,
+    queryRunner?: QueryRunner,
   ) {
     super(target, manager, queryRunner);
   }
