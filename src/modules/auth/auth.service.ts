@@ -24,11 +24,12 @@ import {
 import { NotFound } from '@aws-sdk/client-s3';
 import { CacheServiceKey } from '../../core/cache/cache.interface';
 import { DataSource } from 'typeorm';
+import { AuthTxService } from './auth.tx.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly dataSource: DataSource,
+    private readonly authTxService: AuthTxService,
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
     private readonly loggerService: LoggerService,
@@ -69,29 +70,15 @@ export class AuthService {
    */
   async signUp(body: SignUpBody): Promise<void> {
     const { email, password } = body;
-
-    // 1. 이메일 중복 검사
-    if (await this.userRepository.findOneByFilters({ email })) {
-      throw new ConflictException('이미 존재하는 이메일입니다.');
-    }
-
-    // 2. 비밀번호 암호화 (Hashing)
     const hashedPassword = await this.hashService.hash(password);
 
-    // 트랜잭션 적용
-    await this.dataSource.transaction(async (manager) => {
-      const trUserRepo = manager.withRepository(this.userRepository);
-      await trUserRepo.save(body.toEntity(hashedPassword));
-    });
+    // ✅ DB만 트랜잭션
+    await this.authTxService.createUserOrThrow(body, hashedPassword);
 
-    // 외부 서비스(Redis, Email)는 DB 트랜잭션 성공 후 실행
+    // ✅ 외부(Redis/Email)는 트랜잭션 밖
     const token = uuidv4();
     await this.cacheService.set(`email-verify:${token}`, email, 300);
-    await this.notificationService.sendWelcomeNotification(
-      email,
-      '고객',
-      token,
-    );
+    await this.notificationService.sendWelcomeNotification(email, '고객', token);
   }
 
   /**

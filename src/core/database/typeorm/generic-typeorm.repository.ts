@@ -61,7 +61,7 @@ export class GenericTypeOrmRepository<
       take: limit, // take: 가져올 개수(limit)
       skip: (page - 1) * limit, // skip: 건너뛸 개수 (offset)
       // (as...) : Mutable<T> 타입을 TypeORM이 인식하는 Where 타입으로 강제 변환
-      where: findOptionsWhere as FindOptionsWhere<T>[], 
+      where: findOptionsWhere as FindOptionsWhere<T>[],
       order: orderOptions,
       select,
     };

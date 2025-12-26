@@ -45,17 +45,33 @@ export class TypeOrmExModule {
 
         // 'useFactory'는 inject에 명시된 의존성(DataSource)을 받아
         // 실제 인스턴스를 동적으로 생성하는 함수이다.
-        useFactory: (DataSource: DataSource): typeof repository => {
-          // 3. DataSource에서 해당 엔티티의 기본 TypeORM 리포지토리를 가져온다.
-          const baseRepository = DataSource.getRepository<any>(entity);
+        // useFactory: (DataSource: DataSource): typeof repository => {
+        //   // 3. DataSource에서 해당 엔티티의 기본 TypeORM 리포지토리를 가져온다.
+        //   const baseRepository = DataSource.getRepository<any>(entity);
 
-          // 4. '커스텀 리포지토리'의 새 인스턴스를 생성한다.
-          // (Repository를 상속받은 클래스는 생성자로 3개의 인자를 받으므로 BaseRepository의 정보를 전달하여 인스턴스화한다.)
-          return new repository(
+        //   // 4. '커스텀 리포지토리'의 새 인스턴스를 생성한다.
+        //   // (Repository를 상속받은 클래스는 생성자로 3개의 인자를 받으므로 BaseRepository의 정보를 전달하여 인스턴스화한다.)
+        //   return new repository(
+        //     baseRepository.target,
+        //     baseRepository.manager,
+        //     baseRepository.queryRunner,
+        //   );
+        // },
+        useFactory: (dataSource: DataSource): typeof repository => {
+          const baseRepository = dataSource.getRepository<any>(entity);
+
+          console.log('[TypeOrmExModule] create repo:', repository.name);
+          console.log('  entity(meta)=', entity?.name);
+          console.log('  base.target=', baseRepository?.target);
+
+          const instance = new repository(
             baseRepository.target,
             baseRepository.manager,
             baseRepository.queryRunner,
           );
+
+          console.log('  instance.target=', (instance as any).target);
+          return instance;
         },
       });
     }

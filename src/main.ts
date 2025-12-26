@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { setNestApp } from './setNestApp';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { initializeTransactionalContext, StorageDriver } from 'typeorm-transactional';
+initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 async function bootstrap() {
   // 1. Nest.js 애플리케이션 인스턴스 생성(AppModule 로드)

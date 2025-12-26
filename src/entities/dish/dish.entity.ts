@@ -30,12 +30,13 @@ export class DishEntity extends UuidEntity {
   @Column({ type: 'json', nullable: true })
   options: DishOption[];
 
-  @Column()
+  // [수정] snake_case로 통일
+  @Column({ name: 'restaurant_id' })
   restaurantId: string;
 
   @ManyToOne(() => RestaurantEntity, (restaurant) => restaurant.dishes, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'restaurantId' })
+  @JoinColumn({ name: 'restaurant_id' })
   restaurant: RestaurantEntity;
 }

@@ -8,29 +8,29 @@ import { ApiProperty } from '@nestjs/swagger';
 @Entity('payment')
 export class PaymentEntity extends UuidEntity {
   @ApiProperty({ description: 'PG사 거래 ID', example: 'imp_1234567890' })
-  @Column()
+  @Column({ name: 'transaction_id' })
   transactionId: string;
 
-  @Column()
+  // [수정] 아래 외래키들 모두 snake_case로 변경
+  @Column({ name: 'user_id' })
   userId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column()
+  @Column({ name: 'restaurant_id' })
   restaurantId: string;
 
   @ManyToOne(() => RestaurantEntity)
-  @JoinColumn({ name: 'restaurantId' })
+  @JoinColumn({ name: 'restaurant_id' })
   restaurant: RestaurantEntity;
 
   @ApiProperty({ description: '주문 ID', example: 'order-uuid-1234' })
-  @Column()
+  @Column({ name: 'order_id' })
   orderId: string;
 
-  // 주문과 결제는 1:1 관계
   @OneToOne(() => OrderEntity)
-  @JoinColumn({ name: 'orderId' })
+  @JoinColumn({ name: 'order_id' })
   order: OrderEntity;
 }

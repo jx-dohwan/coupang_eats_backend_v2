@@ -17,11 +17,11 @@ import { OrderStatus } from '../../common/type/common.interface';
 import { Role } from '../../entities/user/user.interface';
 import { EventsGateway } from '../../events/events.gateway';
 import { DishEntity } from '../../entities/dish/dish.entity';
+import { Transactional, runOnTransactionCommit } from 'typeorm-transactional';
 
 @Injectable()
 export class OrderService {
   constructor(
-    private readonly dataSource: DataSource,
     private readonly orderRepository: OrderRepository,
     private readonly orderItemRepository: OrderItemRepository,
     private readonly restaurantRepository: RestaurantRepository,
@@ -34,48 +34,52 @@ export class OrderService {
    * - 트랜잭션 처리
    * - 주문 생성 후 Owner에게 실시간 알림 전송
    */
+  @Transactional()
   async createOrder(customer: User, dto: CreateOrderDto) {
-    const restaurant = await this.restaurantRepository.findByIdOrThrow(dto.restaurantId);
+    const restaurant = await this.restaurantRepository.findByIdOrThrow(
+      dto.restaurantId,
+    );
+
     const dishIds = dto.items.map((item) => item.dishId);
     const dishes = await this.dishRepository.findManyWithOmitNotJoinedProps(
       { id: In(dishIds) },
       { options: true },
     );
 
-    //  1. 트랜잭션 실행 결과를 변수(order)에 담습니다.
-    const order = await this.dataSource.transaction(async (manager) => {
-      const trOrderItemRepo = manager.withRepository(this.orderItemRepository);
-      const trOrderRepo = manager.withRepository(this.orderRepository);
+    let finalTotal = 0;
+    const orderItems: OrderItemEntity[] = [];
 
-      let finalTotal = 0;
-      const orderItems: OrderItemEntity[] = [];
+    for (const itemDto of dto.items) {
+      const dish = dishes.find((d) => d.id === itemDto.dishId);
+      if (!dish)
+        throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
 
-      for (const itemDto of dto.items) {
-        const dish = dishes.find((d) => d.id === itemDto.dishId);
-        if (!dish) throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
+      const { orderItem, itemPrice } = this.processOrderItem(itemDto, dish);
+      await this.orderItemRepository.save(orderItem);
 
-        const { orderItem, itemPrice } = this.processOrderItem(itemDto, dish);
-        await trOrderItemRepo.save(orderItem);
+      orderItems.push(orderItem);
+      finalTotal += itemPrice;
+    }
 
-        orderItems.push(orderItem);
-        finalTotal += itemPrice;
-      }
+    finalTotal += restaurant.deliveryFee;
 
-      finalTotal += restaurant.deliveryFee;
-      const orderEntity = dto.toEntity(customer, restaurant, finalTotal, orderItems);
+    const orderEntity = dto.toEntity(
+      customer,
+      restaurant,
+      finalTotal,
+      orderItems,
+    );
+    const order = await this.orderRepository.save(orderEntity);
 
-      return await trOrderRepo.save(orderEntity);
+    runOnTransactionCommit(() => {
+      const ownerRoom = `Owner:${restaurant.ownerId}`;
+      this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
+        orderId: order.id,
+        restaurantId: restaurant.id,
+        total: order.total,
+      });
     });
 
-    //  2. 트랜잭션이 성공적으로 끝난 후 점주에게 알림을 보냅니다 (이 코드가 반드시 필요함!)
-    const ownerRoom = `Owner:${restaurant.ownerId}`;
-    this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
-      orderId: order.id,
-      restaurantId: restaurant.id,
-      total: order.total,
-    });
-
-    //  3. 마지막으로 생성된 주문 객체를 반환합니다.
     return order;
   }
 
@@ -218,25 +222,40 @@ export class OrderService {
    * 👇 [Private Helper Method]
    * 주문 아이템 1개에 대한 가격 계산 및 엔티티 생성을 담당합니다.
    */
+  // private processOrderItem(itemDto: CreateOrderItemDto, dish: DishEntity) {
+  //   let itemPrice = dish.price;
+
+  //   // 옵션 가격 검증 및 계산
+  //   if (itemDto.options) {
+  //     for (const userOption of itemDto.options) {
+  //       // DB에 있는 옵션인지, 가격은 얼마인지 확인 (보안)
+  //       const validOption = dish.options?.find(
+  //         (o) => o.name === userOption.name,
+  //       );
+  //       if (validOption) {
+  //         itemPrice += validOption.extra;
+  //       }
+  //     }
+  //   }
+
+  //   // DTO의 toEntity 메서드 호출 (스냅샷 생성)
+  //   const orderItem = itemDto.toEntity(dish);
+
+  //   return { orderItem, itemPrice };
+  // }
   private processOrderItem(itemDto: CreateOrderItemDto, dish: DishEntity) {
     let itemPrice = dish.price;
 
-    // 옵션 가격 검증 및 계산
     if (itemDto.options) {
       for (const userOption of itemDto.options) {
-        // DB에 있는 옵션인지, 가격은 얼마인지 확인 (보안)
         const validOption = dish.options?.find(
           (o) => o.name === userOption.name,
         );
-        if (validOption) {
-          itemPrice += validOption.extra;
-        }
+        if (validOption) itemPrice += validOption.extra;
       }
     }
 
-    // DTO의 toEntity 메서드 호출 (스냅샷 생성)
     const orderItem = itemDto.toEntity(dish);
-
     return { orderItem, itemPrice };
   }
 }

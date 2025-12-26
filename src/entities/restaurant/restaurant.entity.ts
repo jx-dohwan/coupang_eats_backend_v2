@@ -39,21 +39,23 @@ export class RestaurantEntity extends UuidEntity {
   @Column({ type: 'timestamp', nullable: true })
   promotedUntil: Date;
 
-  @Column()
+  // [수정] DB 컬럼명 통일 (snake_case)
+  @Column({ name: 'owner_id' })
   ownerId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' }) // 주인이 탈퇴하면 식당도 삭제
-  @JoinColumn({ name: 'ownerId' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' }) // 위와 이름 일치시킴
   owner: User;
 
-  @Column()
+  // [수정] DB 컬럼명 통일 및 nullable 설정
+  @Column({ name: 'category_id', nullable: true })
   categoryId: string;
 
   @ManyToOne(() => CategoryEntity, (category) => category.restaurants, {
     nullable: true,
     onDelete: 'SET NULL',
   })
-  @JoinColumn({ name: 'categoryId' })
+  @JoinColumn({ name: 'category_id' }) // [치명적 오류 수정] @Column -> @JoinColumn
   category: CategoryEntity;
 
   @OneToMany(() => DishEntity, (dish) => dish.restaurant)

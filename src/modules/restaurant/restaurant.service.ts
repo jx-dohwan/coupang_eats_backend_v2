@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RestaurantRepository } from './repository/restaurant.repository';
@@ -10,12 +11,13 @@ import { Role } from '../../entities/user/user.interface';
 import { PaginationRequest } from '../../common/pagination/pagination.request';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
-import { DataSource } from 'typeorm';
+import { CategoryEntity } from '../../entities/category/category.entity';
+import { RestaurantEntity } from '../../entities/restaurant/restaurant.entity';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class RestaurantService {
   constructor(
-    private readonly dataSource: DataSource,
     private readonly restaurantRepository: RestaurantRepository,
     private readonly categoryRepository: CategoryRepository,
   ) {}
@@ -23,57 +25,53 @@ export class RestaurantService {
   /**
    * 식당 생성 (점주 전용)
    */
+  @Transactional()
   async createRestaurant(owner: User, dto: CreateRestaurantDto) {
     if (owner.role !== Role.OWNER) {
       throw new UnauthorizedException('Only owners can create restaurants');
     }
 
-    // [2] 트랜잭션 시작
-    return await this.dataSource.transaction(async (manager) => {
-      // [3] 트랜잭션용 레포지토리 획득 (매우 중요)
-      const trCategoryRepo = manager.withRepository(this.categoryRepository);
-      const trRestaurantRepo = manager.withRepository(
-        this.restaurantRepository,
-      );
-
-      const category = await trCategoryRepo.findByIdOrThrow(dto.categoryId);
-
-      const restaurant = dto.toEntity(owner.id);
-      restaurant.category = category;
-
-      return await trRestaurantRepo.save(restaurant);
+    // 트랜잭션 안에서 그냥 평소처럼 repo 사용
+    const category = await this.categoryRepository.findOneByFilters({
+      id: dto.categoryId,
     });
+
+    if (!category) {
+      throw new NotFoundException(`don't exist ${dto.categoryId}`);
+    }
+
+    const restaurant = dto.toEntity(owner.id);
+    restaurant.category = category;
+
+    return this.restaurantRepository.save(restaurant);
   }
 
   /**
    * 식당 정보 수정(점주 전용)
    */
+  @Transactional()
   async updateRestaurant(
     owner: User,
     restaurantId: string,
     dto: UpdateRestaurantDto,
   ) {
-    // 1. 식당 조회(존재 여부 확인)
     const restaurant =
       await this.restaurantRepository.findByIdOrThrow(restaurantId);
 
-    // 2. 소유권 확인(내 식당이 맞는지)
     if (restaurant.ownerId !== owner.id) {
       throw new ForbiddenException('You are not the owner of this restaurant');
     }
 
-    // 3. 카테고리 변경 시, 실제 존재하는 카테고리인지 검증
     if (dto.categoryId) {
       await this.categoryRepository.findByIdOrThrow(dto.categoryId);
     }
 
-    // 4. 병합 및 저장
-    const updateRestaurant = this.restaurantRepository.create({
+    const updated = this.restaurantRepository.create({
       ...restaurant,
       ...dto,
     });
 
-    return this.restaurantRepository.save(updateRestaurant);
+    return this.restaurantRepository.save(updated);
   }
 
   /**
