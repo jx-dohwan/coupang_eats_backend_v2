@@ -78,12 +78,14 @@ export class TypeOrmModule {
             // dev/prod 환경에서는 마이그레이션을 사용해야 하므로 비활성화(false)
             synchronize: isDevelopment,
             logging: true, // 운영 환경에서는 false, 개발 시 true로 변경 가능
+            connectorPackage: 'mysql2',
           };
           return options;
         },
         // 6. dataSourceFactory: 'typeorm-transactional'연동
         // TypeORM이 DataSoruce를 생성할 때 이 팰토리를 사용한다.
         async dataSourceFactory(options?: DataSourceOptions) {
+          console.log('🔥 [DEBUG] Transactional DataSource Created!');
           if (!options) throw new Error('Invalid options passed');
           // 생성된 DataSource를 'typeorm-transactional'이 관리할 수 있도록
           // 'addTransactionalDataSource'로 래핑하여 반환

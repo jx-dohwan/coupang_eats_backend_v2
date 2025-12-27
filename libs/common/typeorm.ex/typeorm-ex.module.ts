@@ -58,19 +58,21 @@ export class TypeOrmExModule {
         //   );
         // },
         useFactory: (dataSource: DataSource): typeof repository => {
-          const baseRepository = dataSource.getRepository<any>(entity);
+          // 1. 데코레이터에서 엔티티 정보를 직접 가져옵니다. (절대 undefined일 수 없음)
+          const entityClass = Reflect.getMetadata(
+            TYPEORM_EX_CUSTOM_REPOSITORY,
+            repository,
+          );
 
-          console.log('[TypeOrmExModule] create repo:', repository.name);
-          console.log('  entity(meta)=', entity?.name);
-          console.log('  base.target=', baseRepository?.target);
+          // 2. DataSource에서 해당 엔티티의 리포지토리를 가져옵니다.
+          const baseRepository = dataSource.getRepository(entityClass);
 
+          // 3. 생성자에 'baseRepository.target' 대신 'entityClass' 자체를 넣습니다.
           const instance = new repository(
-            baseRepository.target,
+            entityClass, // 메타데이터 유실 방지: 엔티티 클래스 직접 주입
             baseRepository.manager,
             baseRepository.queryRunner,
           );
-
-          console.log('  instance.target=', (instance as any).target);
           return instance;
         },
       });
