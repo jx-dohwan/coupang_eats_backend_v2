@@ -4,7 +4,8 @@ import {
   JoinTable,
   ManyToMany,
   ManyToOne,
-  JoinColumn, // [추가]
+  JoinColumn,
+  OneToMany, 
 } from 'typeorm';
 import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { OrderStatus } from '../../common/type/common.interface';
@@ -18,6 +19,10 @@ export class OrderEntity extends UuidEntity {
   @ApiProperty({ description: '총 주문 금액', example: 25000 })
   @Column({ type: 'int', nullable: true })
   total: number;
+
+  @ApiProperty({ description: '총 주문 수량' })
+  @Column({ type: 'int', nullable: true, name: 'totalCount' })
+  totalCount: number;
 
   @ApiProperty({
     description: '주문 상태',
@@ -62,7 +67,9 @@ export class OrderEntity extends UuidEntity {
 
   // 4. 주문 항목 (ManyToMany는 JoinTable 사용하므로 기존 유지)
   @ApiProperty({ description: '주문 항목 리스트', type: [OrderItemEntity] })
-  @ManyToMany(() => OrderItemEntity, { eager: true, cascade: true })
-  @JoinTable({ name: 'order_items_order_item' })
+  @OneToMany(() => OrderItemEntity, (orderItem) => orderItem.order, {
+    eager: true,
+    cascade: true, //  이 설정 덕분에 order.save() 시 items가 자동 저장됨
+  })
   items: OrderItemEntity[];
 }

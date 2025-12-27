@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { Role } from './user.interface';
 import { OrderEntity } from '../order/order.entity';
+import { RestaurantEntity } from '../restaurant/restaurant.entity';
 
 @Entity('user')
 export class User extends UuidEntity {
@@ -19,6 +20,9 @@ export class User extends UuidEntity {
 
   @Column({ type: 'boolean', default: false, nullable: false })
   verified: boolean;
+
+  @OneToMany(() => RestaurantEntity, (restaurant) => restaurant.owner)
+  restaurants: RestaurantEntity[];
 
   @OneToMany(() => OrderEntity, (order) => order.customer)
   orders: OrderEntity[];

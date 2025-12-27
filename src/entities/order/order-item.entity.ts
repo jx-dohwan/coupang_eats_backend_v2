@@ -1,8 +1,9 @@
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { UuidEntity } from '../../core/database/typeorm/base.entity';
 import { DishEntity } from '../dish/dish.entity';
 import { DishOption } from '../dish/dish.interface';
 import { ApiProperty } from '@nestjs/swagger';
+import { OrderEntity } from './order.entity';
 
 @Entity('order_item')
 export class OrderItemEntity extends UuidEntity {
@@ -23,4 +24,11 @@ export class OrderItemEntity extends UuidEntity {
   })
   @Column({ type: 'json', nullable: true })
   options: DishOption[];
+
+  @Column({ name: 'order_id', nullable: true })
+  orderId: string;
+
+  @ManyToOne(() => OrderEntity, (order) => order.items, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'order_id' })
+  order: OrderEntity;
 }
