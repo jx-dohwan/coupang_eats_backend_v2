@@ -35,18 +35,20 @@ export class OrderService {
    * - 주문 생성 후 Owner에게 실시간 알림 전송
    */
   @Transactional()
+  @Transactional()
   async createOrder(customer: User, dto: CreateOrderDto) {
+    // 1. 식당 및 메뉴 정보 조회 (기존과 동일)
     const restaurant = await this.restaurantRepository.findByIdOrThrow(
       dto.restaurantId,
     );
-
     const dishIds = dto.items.map((item) => item.dishId);
     const dishes = await this.dishRepository.findManyWithOmitNotJoinedProps(
       { id: In(dishIds) },
-      { options: true },
+      {},
     );
 
     let finalTotal = 0;
+    // ✅ 변경 포인트 1: DB에 바로 넣지 않고 메모리 배열에 담습니다.
     const orderItems: OrderItemEntity[] = [];
 
     for (const itemDto of dto.items) {
@@ -55,22 +57,31 @@ export class OrderService {
         throw new NotFoundException(`Dish not found: ${itemDto.dishId}`);
 
       const { orderItem, itemPrice } = this.processOrderItem(itemDto, dish);
-      await this.orderItemRepository.save(orderItem);
 
-      orderItems.push(orderItem);
+      //  변경 포인트 2: repository.save() 대신 repository.create()를 사용합니다.
+      // .create()는 DB에 저장하지 않고 엔티티 '인스턴스'만 생성하므로 매우 빠릅니다.
+      const itemEntity = this.orderItemRepository.create(orderItem);
+      orderItems.push(itemEntity);
+
       finalTotal += itemPrice;
     }
 
     finalTotal += restaurant.deliveryFee;
 
+    // 2. 주문 엔티티 생성
     const orderEntity = dto.toEntity(
       customer,
       restaurant,
       finalTotal,
-      orderItems,
+      orderItems, // 위에서 만든 엔티티 배열을 넣어줍니다.
     );
+
+    //  변경 포인트 3: 한 번의 save()로 모든 것을 해결합니다.
+    // TypeORM의 Cascade 옵션이 설정되어 있다면 order만 저장해도 items가 한 번에 저장됩니다.
+    // 설정이 없더라도 명시적으로 items를 먼저 bulk save 할 수 있습니다.
     const order = await this.orderRepository.save(orderEntity);
 
+    // 3. 트랜잭션 확정 후 알림 전송 (기존과 동일 - 아주 좋은 코드입니다)
     runOnTransactionCommit(() => {
       const ownerRoom = `Owner:${restaurant.ownerId}`;
       this.eventsGateway.server.to(ownerRoom).emit('newPendingOrder', {
@@ -161,6 +172,7 @@ export class OrderService {
   /**
    * 4. 상태 변경
    */
+  @Transactional()
   async editOrderStatus(user: User, orderId: string, { status }: EditOrderDto) {
     const order =
       await this.orderRepository.findOneWithOmitNotJoinedPropsOrThrow(

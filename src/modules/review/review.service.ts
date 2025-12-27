@@ -43,17 +43,19 @@ export class ReviewService {
       );
     }
 
-    // 중복 리뷰 방지(1주문 1리뷰)
+    // 3. 중복 리뷰 방지 (1주문 1리뷰)
+    // ReviewEntity에 orderId 컬럼이 있으므로 직접 조회 가능
     const existingReview = await this.reviewRepository.findOneByFilters({
-      order: { id: dto.orderId },
-    } as any);
+      orderId: dto.orderId, 
+    });
 
     if (existingReview) {
       throw new ConflictException('You have already reviewed this order.');
     }
 
     // 4. 리뷰 생성
-    const review = dto.toEntity(user, order.restaurant);
+    // ✅ [수정] 3번째 인자로 'order' 객체를 넘겨줘야 합니다!
+    const review = dto.toEntity(user, order.restaurant, order);
 
     return this.reviewRepository.save(review);
   }

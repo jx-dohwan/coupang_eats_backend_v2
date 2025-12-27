@@ -27,23 +27,42 @@ export class RestaurantService {
    */
   @Transactional()
   async createRestaurant(owner: User, dto: CreateRestaurantDto) {
-    if (owner.role !== Role.OWNER) {
-      throw new UnauthorizedException('Only owners can create restaurants');
+    try {
+      console.log('🔥 1. createRestaurant 진입');
+
+      if (owner.role !== Role.OWNER) {
+        throw new UnauthorizedException('Only owners can create restaurants');
+      }
+
+      console.log('🔥 2. Repo 확인:', !!this.restaurantRepository);
+      // 리포지토리가 껍데기인지 확인하기 위해 manager 존재 여부 출력
+      console.log('🔥 2-1. Repo Manager:', !!this.restaurantRepository.manager);
+
+      const category = await this.categoryRepository.findOneByFilters({
+        id: dto.categoryId,
+      });
+
+      if (!category) {
+        throw new NotFoundException(`don't exist ${dto.categoryId}`);
+      }
+
+      const restaurant = dto.toEntity(owner.id);
+      restaurant.category = category;
+
+      console.log('🔥 3. 저장 시도 직전');
+
+      // ✅ [중요] this.restaurantService가 아니라 this.restaurantRepository 여야 합니다.
+      const result = await this.restaurantRepository.save(restaurant);
+
+      console.log('🔥 4. 저장 성공');
+      return result;
+    } catch (error) {
+      // 🚨 여기가 가장 중요합니다. 에러 내용을 눈으로 확인해야 합니다.
+      console.error('❌ [FATAL ERROR LOG] -----------------------');
+      console.error(error);
+      console.error('--------------------------------------------');
+      throw error;
     }
-
-    // 트랜잭션 안에서 그냥 평소처럼 repo 사용
-    const category = await this.categoryRepository.findOneByFilters({
-      id: dto.categoryId,
-    });
-
-    if (!category) {
-      throw new NotFoundException(`don't exist ${dto.categoryId}`);
-    }
-
-    const restaurant = dto.toEntity(owner.id);
-    restaurant.category = category;
-
-    return this.restaurantRepository.save(restaurant);
   }
 
   /**
@@ -95,10 +114,14 @@ export class RestaurantService {
    * 식당 상세 조회 (메뉴 포함)
    */
   async getRestaurantById(id: string) {
-    // 메뉴와 카테고리 정보를 Join해서 가져옴
-    return this.restaurantRepository.findOneWithOmitNotJoinedPropsOrThrow(
-      { id },
-      { dishes: true, category: true },
-    );
+    try {
+      return await this.restaurantRepository.findOneWithOmitNotJoinedPropsOrThrow(
+        { id },
+        { dishes: true, category: true },
+      );
+    } catch (e) {
+      console.error('❌ [GET ERROR] :', e);
+      throw e;
+    }
   }
 }

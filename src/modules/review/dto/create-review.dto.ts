@@ -1,57 +1,46 @@
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
-import { RestaurantEntity } from '../../../entities/restaurant/restaurant.entity';
-import { ReviewEntity } from '../../../entities/review/review.entity';
 import { plainToInstance } from 'class-transformer';
+import { ReviewEntity } from '../../../entities/review/review.entity';
 import { User } from '../../../entities/user/user.entity';
+import { RestaurantEntity } from '../../../entities/restaurant/restaurant.entity';
+import { OrderEntity } from '../../../entities/order/order.entity';
 
 export class CreateReviewDto {
-  @ApiProperty({ description: '주문 ID', example: 'order-uuid-1234' })
-  @IsString()
+  @ApiProperty({ description: '주문 ID', example: 'uuid' })
+  @IsUUID()
+  @IsNotEmpty()
   orderId: string;
 
-  @ApiProperty({ description: '식당 ID', example: 'restaurant-uuid-1234' })
-  @IsString()
+  @ApiProperty({ description: '식당 ID', example: 'uuid' })
+  @IsUUID()
+  @IsNotEmpty()
   restaurantId: string;
 
-  @ApiProperty({
-    description: '평점 (1~5)',
-    example: 5,
-    minimum: 1,
-    maximum: 5,
-  })
-  @IsNumber()
+  @ApiProperty({ description: '평점 (1~5)', example: 5 })
+  @IsInt()
   @Min(1)
   @Max(5)
   score: number;
 
-  @ApiProperty({ description: '리뷰 내용', example: '최고입니다.' })
+  @ApiProperty({ description: '리뷰 내용', example: '맛있어요' })
   @IsString()
+  @IsNotEmpty()
   reviewText: string;
 
-  @ApiProperty({
-    description: '이미지 URL 리스트',
-    type: [String],
-    required: false,
-  })
+  @ApiProperty({ description: '리뷰 이미지', required: false })
   @IsOptional()
-  @IsArray()
   reviewImg?: string[];
 
-  toEntity(user: User, restaurant: RestaurantEntity): ReviewEntity {
-    const entity = plainToInstance(ReviewEntity, this);
-
-    // 관계 설정
-    entity.client = user;
-    entity.restaurant = restaurant;
-
-    return entity;
+  toEntity(client: User, restaurant: RestaurantEntity, order: OrderEntity): ReviewEntity {
+    return plainToInstance(ReviewEntity, {
+      score: this.score,
+      reviewText: this.reviewText,
+      reviewImg: this.reviewImg,
+      client: client,
+      restaurant: restaurant,
+      order: order, // ✅ 주문 정보 연결
+      orderId: order.id // ID도 명시적으로
+    });
   }
 }
