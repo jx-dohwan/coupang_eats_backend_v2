@@ -8,6 +8,9 @@ import { CacheModule } from '../../core/cache/cache.module';
 @Module({
   imports: [UserRepositoryModule, HashModule, CacheModule],
   controllers: [UserController],
-  providers: [UserService, UserRepositoryModule],
+
+  providers: [UserService],
+
+  exports: [UserService, UserRepositoryModule],
 })
 export class UserModule {}
