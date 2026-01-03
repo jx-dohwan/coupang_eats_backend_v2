@@ -52,11 +52,19 @@ jobs:
           image: ${{ steps.build-image.outputs.image }}
           # ⭐ 깃허브 금고에서 값을 꺼내 배포 직전에 주입합니다.
           environment-variables: |
+            AWS_REGION=${{ env.AWS_REGION }}
+            DB_TYPE=${{ secrets.DB_TYPE }}
             DB_HOST=${{ secrets.DB_HOST }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            REDIS_HOST=${{ secrets.REDIS_HOST }}
             DB_USER_NAME=${{ secrets.DB_USER_NAME }}
-
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_ACCESS_EXPIRATION=${{ secrets.JWT_ACCESS_EXPIRATION }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
+            AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
+            AWS_SES_SENDER_EMAIL=${{ secrets.AWS_SES_SENDER_EMAIL }}
+            BASE_URL=${{ secrets.BASE_URL }}
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
