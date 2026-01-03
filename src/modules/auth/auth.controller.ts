@@ -43,7 +43,7 @@ export class AuthController {
 
   // [Helper] Refresh Token을 HttpOnly 쿠키에 저장하는 메서드
   private setRefreshTokenCookie(
-    res: ExpressResponse,
+    res: any,
     refreshToken: string,
   ): void {
     res.cookie('refreshToken', refreshToken, {
@@ -55,7 +55,7 @@ export class AuthController {
   }
 
   // [Helper] 로그아웃 시 클라이언트의 Refresh Token 쿠키를 삭제하는 메서드
-  private clearRefreshTokenCookie(res: ExpressResponse): void {
+  private clearRefreshTokenCookie(res: any): void {
     res.clearCookie('refreshToken', {
       httpOnly: !this.isLocal,
       secure: !this.isLocal,
@@ -86,7 +86,7 @@ export class AuthController {
   async signIn(
     @Body() body: SignInBody,
     // passthrough: true -> NestJS가 응답을 처리하되, 우리가 쿠키나 헤더를 직접 조작할 수 있게 함
-    @Response({ passthrough: true }) res: ExpressResponse,
+    @Response({ passthrough: true }) res: any,
   ) {
     const tokenPair = await this.authService.signIn(body);
 
