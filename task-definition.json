@@ -1,0 +1,39 @@
+{
+    "family": "coupang-eats-backend-task",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::441866789243:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::441866789243:role/ecsTaskRole",
+    "containerDefinitions": [
+      {
+        "name": "nestjs-container",
+        "image": "<IMAGE_PLACEHOLDER>",
+        "portMappings": [
+          { "containerPort": 3000, "protocol": "tcp", "appProtocol": "http" }
+        ],
+        "environment": [
+          { "name": "NODE_ENV", "value": "production" },
+          { "name": "PORT", "value": "3000" },
+          { "name": "DB_DATABASE", "value": "coupang_dev" },
+          { "name": "REDIS_PORT", "value": "6379" },
+          { "name": "DB_PORT", "value": "3306" }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/coupang-eats-backend-task",
+            "awslogs-region": "ap-northeast-2",
+            "awslogs-stream-prefix": "ecs",
+            "awslogs-create-group": "true"
+          }
+        },
+        "essential": true
+      }
+    ],
+    "runtimePlatform": {
+      "cpuArchitecture": "X86_64",
+      "operatingSystemFamily": "LINUX"
+    }
+  }
