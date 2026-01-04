@@ -23,27 +23,41 @@ import { CACHE_KEY } from './cache.decorator'; // '@Cache' 데코레이터의 �
 import { ConfigService } from '@nestjs/config';
 import { ConfigModule } from '../config/config.module';
 import { LoggerModule } from '../logger/logger.module';
+import { MoinConfigService } from '../config/config.service';
 
 /**
  * 'RedisClientKey' 토큰으로 Redis 클라이언트 인스턴스를 생성/제공하는 팩토리
  */
 const redisConnect: FactoryProvider = {
   provide: RedisClientKey,
-  inject: [ConfigService], // ConfigService를 주입받습니다.
-  useFactory: async (configService: ConfigService) => {
-    // configurations.ts에서 정의한 계층 구조를 통해 값을 가져옵니다.
-    const host = configService.get<string>('REDIS.HOST');
-    const port = configService.get<number>('REDIS.PORT');
+  inject: [MoinConfigService], //  MoinConfigService 주입
+  useFactory: async (configService: MoinConfigService) => {
+    // 1. 설정값 가져오기
+    const redisConfig = configService.getRedisConfig();
 
+    // 2. [중요] 포트 타입 변환 (string | number -> number)
+    // 환경변수는 문자열로 올 수 있으므로 반드시 숫자로 변환해야 ioredis 에러가 안 납니다.
+    const port = Number(redisConfig.PORT) || 6379;
+    const host = redisConfig.HOST || '127.0.0.1';
+
+    // 3. 디버깅용 로그 (배포 후 CloudWatch에서 주소 확인용)
+    console.log(`[Redis Config] Connecting to: ${host}:${port}`);
+
+    // 4. Redis 클라이언트 생성
     const client = new Redis({
-      port: port || 6379,
-      host: host || '127.0.0.1',
-      // Fargate에서 ElastiCache 접속 시 필요하다면 추가 옵션(예: password, tls)을 여기에 넣습니다.
+      host: host,
+      port: port, // 이제 확실한 number 타입입니다.
+      retryStrategy: (times) => Math.min(times * 50, 2000), // 재연결 전략
     });
+
+    // 5. 에러 리스너 등록 (연결 끊김 시 로그 출력)
+    client.on('error', (err) => {
+      console.error('[Redis Error]', err);
+    });
+
     return client;
   },
 };
-
 /**
  * 'CacheServiceKey' 토큰으로 CacheService를 등록/제공
  */
