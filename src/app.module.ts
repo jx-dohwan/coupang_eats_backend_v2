@@ -10,6 +10,7 @@ import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ReviewModule } from './modules/review/review.module';
+import { AppController } from './app.controller';
 
 const applicationModules = [
   UserModule,
@@ -24,7 +25,7 @@ const applicationModules = [
 
 @Module({
   imports: [CoreModule, ...applicationModules],
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule {}
