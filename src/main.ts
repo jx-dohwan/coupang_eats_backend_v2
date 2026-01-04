@@ -6,12 +6,11 @@ import { initializeTransactionalContext, StorageDriver } from 'typeorm-transacti
 initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 async function bootstrap() {
-  
+
   // 1. Nest.js 애플리케이션 인스턴스 생성(AppModule 로드)
   const app = await NestFactory.create(AppModule);
   // 2. 공통 설정 작용
   setNestApp(app);
-
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('Coupang Eats API')
