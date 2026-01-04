@@ -20,17 +20,25 @@ import {
 } from '@nestjs/core';
 import { LoggerService } from '../logger/logger.service';
 import { CACHE_KEY } from './cache.decorator'; // '@Cache' 데코레이터의 메타데이터 키
+import { ConfigService } from '@nestjs/config';
+import { ConfigModule } from '../config/config.module';
+import { LoggerModule } from '../logger/logger.module';
 
 /**
  * 'RedisClientKey' 토큰으로 Redis 클라이언트 인스턴스를 생성/제공하는 팩토리
  */
 const redisConnect: FactoryProvider = {
   provide: RedisClientKey,
-  useFactory: async () => {
-    // (설정) 127.0.0.1:6379에 연결. (실제로는 ConfigService 사용 권장)
+  inject: [ConfigService], // ConfigService를 주입받습니다.
+  useFactory: async (configService: ConfigService) => {
+    // configurations.ts에서 정의한 계층 구조를 통해 값을 가져옵니다.
+    const host = configService.get<string>('REDIS.HOST');
+    const port = configService.get<number>('REDIS.PORT');
+
     const client = new Redis({
-      port: 6379,
-      host: '127.0.0.1',
+      port: port || 6379,
+      host: host || '127.0.0.1',
+      // Fargate에서 ElastiCache 접속 시 필요하다면 추가 옵션(예: password, tls)을 여기에 넣습니다.
     });
     return client;
   },
@@ -45,7 +53,7 @@ const cacheService: ClassProvider = {
 };
 
 @Module({
-  imports: [DiscoveryModule], // 다른 모듈을 스캔하기 위해 DiscoveryModule 임포트
+  imports: [DiscoveryModule, ConfigModule, LoggerModule], // 다른 모듈을 스캔하기 위해 DiscoveryModule 임포트
   providers: [redisConnect, cacheService],
   exports: [cacheService],
 })
