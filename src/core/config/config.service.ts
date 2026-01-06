@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppConfig, Configurations, DBConfig, JwtConfig, RedisConfig } from '.';
+import { AppConfig, AwsConfig, Configurations, DBConfig, JwtConfig, RedisConfig } from '.';
 
 // 이 서비스가 다른 곳에 주입될수 있음을 Nest.js에게 알린다.
 @Injectable()
@@ -28,5 +28,9 @@ export class MoinConfigService {
 
   getJwtConfig(): JwtConfig {
     return this.configService.getOrThrow('JWT');
+  }
+
+  getAwsConfig(): AwsConfig {
+    return this.configService.getOrThrow('AWS');
   }
 }

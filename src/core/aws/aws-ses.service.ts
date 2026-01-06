@@ -1,61 +1,52 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-import { Configurations } from '../config';
+import { NodeHttpHandler } from '@smithy/node-http-handler'; // 👈 필수: npm install @smithy/node-http-handler
+import { MoinConfigService } from '../config/config.service';
 
 @Injectable()
 export class AwsSesService {
   private readonly sesClient: SESClient;
   private readonly senderEmail: string;
 
-  constructor(private readonly configService: ConfigService<Configurations>) {
-    this.sesClient = new SESClient({
-      region: this.configService.getOrThrow('AWS.REGION', { infer: true }),
-    });
+  constructor(private readonly configService: MoinConfigService) {
+    const awsConfig = this.configService.getAwsConfig();
+    this.senderEmail = awsConfig.SES_SENDER_EMAIL;
 
-    // 환경변수에서 발신자 이메일 가져오기 (설정 파일에 추가 필요)
-    this.senderEmail = this.configService.getOrThrow('AWS.SES_SENDER_EMAIL', {
-      infer: true,
+    this.sesClient = new SESClient({
+      region: awsConfig.REGION,
+      // 🚨 [근본 해결 1] 타임아웃 강제 지정 (504 에러 방지용)
+      requestHandler: new NodeHttpHandler({
+        connectionTimeout: 3000, 
+        socketTimeout: 5000,
+      }),
+      // 🚨 [근본 해결 2] 찾으시던 엔드포인트 주소입니다. 
+      // 변수 대신 직접 문자열로 넣었습니다.
+      endpoint: "https://email.ap-northeast-2.amazonaws.com", 
     });
   }
 
-  /**
-   * 이메일 발송 메서드
-   * @param to 수신자 이메일
-   * @param subject 제목
-   * @param htmlBody 본문 (HTML)
-   */
-  async sendEmail(
-    to: string,
-    subject: string,
-    htmlBody: string,
-  ): Promise<void> {
+  async sendEmail(to: string, subject: string, htmlBody: string): Promise<void> {
     try {
+      console.log(`[SES-DEBUG] 발송 시도: To(${to})`);
+
       const command = new SendEmailCommand({
-        Source: this.senderEmail, // 검증된 발신자 주소
-        Destination: {
-          ToAddresses: [to],
-        },
+        Source: this.senderEmail,
+        Destination: { ToAddresses: [to] },
         Message: {
-          Subject: {
-            Data: subject,
-            Charset: 'UTF-8',
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: 'UTF-8',
-            },
-          },
+          Subject: { Data: subject, Charset: 'UTF-8' },
+          Body: { Html: { Data: htmlBody, Charset: 'UTF-8' } },
         },
       });
 
       await this.sesClient.send(command);
+      console.log(`[SES-DEBUG] 발송 성공!`);
     } catch (error) {
-      console.error('SES Error:', error);
-      throw new InternalServerErrorException(
-        `SES 실패 원인: ${error.name} - ${error.message}`
-      );
+      console.error('SES Error 상세 로그:', {
+        name: error.name,
+        message: error.message,
+        code: error.$metadata?.httpStatusCode,
+      });
+      throw new InternalServerErrorException(`SES 실패: ${error.message}`);
     }
   }
 }
