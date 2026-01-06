@@ -43,4 +43,5 @@ EXPOSE 3000
 
 # [권장] 'node dist/main'으로 실행 (가장 빠르고 가벼움)
 # package.json의 "start:prod" 스크립트 내용과 동일합니다.
-CMD ["node", "dist/src/main"]
+# CMD ["node", "dist/src/main"]
+CMD sh -c "npm run migration:run && npm run start:prod"

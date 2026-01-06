@@ -39,6 +39,7 @@ const redisConnect: FactoryProvider = {
     // 환경변수는 문자열로 올 수 있으므로 반드시 숫자로 변환해야 ioredis 에러가 안 납니다.
     const port = Number(redisConfig.PORT) || 6379;
     const host = redisConfig.HOST || '127.0.0.1';
+    
 
     // 3. 디버깅용 로그 (배포 후 CloudWatch에서 주소 확인용)
     console.log(`[Redis Config] Connecting to: ${host}:${port}`);
