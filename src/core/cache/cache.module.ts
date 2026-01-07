@@ -48,6 +48,7 @@ const redisConnect: FactoryProvider = {
     const client = new Redis({
       host: host,
       port: port, // 이제 확실한 number 타입입니다.
+      tls: {},
       retryStrategy: (times) => Math.min(times * 50, 2000), // 재연결 전략
     });
 
