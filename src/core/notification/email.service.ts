@@ -19,7 +19,7 @@ export class EmailService implements INotificationService {
     token: string,
   ): Promise<void> {
     const baseUrl = this.configService.get('APP.BASE_URL', { infer: true });
-    const verifyUrl = `${baseUrl}/api/auth/verify-email?token=${token}`;
+    const verifyUrl = `${baseUrl}/auth/verify-email?token=${token}`;
 
     this.loggerService.info(
       this.sendWelcomeNotification.name,
