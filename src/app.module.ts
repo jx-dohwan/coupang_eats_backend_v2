@@ -11,6 +11,7 @@ import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ReviewModule } from './modules/review/review.module';
 import { AppController } from './app.controller';
+import { UploadModule } from './modules/upload/upload.module';
 
 const applicationModules = [
   UserModule,
@@ -21,6 +22,7 @@ const applicationModules = [
   OrderModule,
   PaymentModule,
   ReviewModule,
+  UploadModule
 ];
 
 @Module({
