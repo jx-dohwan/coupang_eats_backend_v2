@@ -25,6 +25,7 @@ import { CurrentRefreshToken } from '../../core/decorator/currentRefreshToken.de
 import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -101,7 +102,16 @@ export class AuthController {
     description:
       '반드시 Header에 **Authorization: Bearer <AccessToken>**을 포함해야 합니다. 호출 시 서버에서 Refresh Token을 무효화하고 브라우저의 쿠키를 삭제합니다.',
   })
-  @ApiBearerAuth('access-token') // main.ts의 설정 이름과 반드시 일치해야 함
+  @ApiBearerAuth('access-token') // 상단 Authorize 버튼 연동
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer {access_token} 형식으로 입력하세요.',
+    required: true,
+    schema: {
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    },
+  })
   @ApiResponse({
     status: 200,
     description: '로그아웃 성공. 브라우저 쿠키(refreshToken)가 삭제됩니다.',
@@ -118,8 +128,13 @@ export class AuthController {
     @Request() req: any,
     @Response({ passthrough: true }) res: ExpressResponse,
   ) {
+    // 헤더에서 Access Token 추출 (블랙리스트 등록용)
     const accessToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req) ?? '';
+
+    // 클라이언트의 쿠키 삭제
     this.clearRefreshTokenCookie(res);
+
+    // 서버 로직 수행 (Redis에서 Refresh Token 삭제 및 Access Token 블랙리스트 처리)
     return this.authService.signOut(user.id, accessToken);
   }
 
