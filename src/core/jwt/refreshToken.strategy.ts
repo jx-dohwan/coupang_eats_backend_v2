@@ -15,7 +15,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
     super({
       // [핵심] 요청의 Body나 Header가 아닌 '쿠키'에서 토큰을 추출합니다.
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => {
+        (req) => {
           return req.cookies?.refreshToken;
         },
       ]),
@@ -30,7 +30,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
    * super()에서 서명 유효성 검사가 끝난 후 실행됩니다.
    * 여기서 반환된 값은 request.user에 저장됩니다.
    */
-  async validate(req: Request, payload: JwtPayload): Promise<RefreshTokenData> {
+  async validate(req:any, payload: JwtPayload): Promise<RefreshTokenData> {
     // 1. 토큰 타입 보안 검사 (Access Token을 Refresh Token처럼 쓰는 공격 방지)
     if (payload.type !== TokenType.REFRESH) {
       throw new UnauthorizedException('Invalid token type');
