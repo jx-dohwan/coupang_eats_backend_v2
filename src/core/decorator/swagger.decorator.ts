@@ -55,3 +55,15 @@ export function ApiDocCreated(summary: string, responseType?: Type<any>) {
     ApiResponse({ status: 403, description: '권한 없음', type: ErrorResponse }),
   );
 }
+
+
+export function ApiDocPublicCreated(summary: string, responseType?: Type<any>) {
+  return applyDecorators(
+    ApiOperation({ summary }),
+    ApiCreatedResponse({
+      description: '생성 성공',
+      type: responseType || CoreOutput,
+    }),
+    ApiResponse({ status: 400, description: '잘못된 요청', type: ErrorResponse }),
+  );
+}
