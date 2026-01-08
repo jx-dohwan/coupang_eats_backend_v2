@@ -24,6 +24,7 @@ import { Env } from '../../core/config';
 import { CurrentRefreshToken } from '../../core/decorator/currentRefreshToken.decorator';
 import {
   ApiBearerAuth,
+  ApiExcludeEndpoint,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -42,10 +43,7 @@ export class AuthController {
   }
 
   // [Helper] Refresh Token을 HttpOnly 쿠키에 저장하는 메서드
-  private setRefreshTokenCookie(
-    res: any,
-    refreshToken: string,
-  ): void {
+  private setRefreshTokenCookie(res: any, refreshToken: string): void {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: !this.isLocal, // true: 자바스크립트로 접근 불가 (XSS 방지)
       secure: !this.isLocal, // true: HTTPS에서만 전송 (로컬은 false)
@@ -98,23 +96,30 @@ export class AuthController {
   }
 
   // 3. 로그아웃 API
-  @ApiOperation({ summary: '로그아웃' })
-  @ApiBearerAuth('access-token')
-  @ApiResponse({ status: 200, description: '성공', type: CoreOutput })
+  @ApiOperation({
+    summary: '로그아웃',
+    description:
+      '반드시 Header에 **Authorization: Bearer <AccessToken>**을 포함해야 합니다. 호출 시 서버에서 Refresh Token을 무효화하고 브라우저의 쿠키를 삭제합니다.',
+  })
+  @ApiBearerAuth('access-token') // main.ts의 설정 이름과 반드시 일치해야 함
+  @ApiResponse({
+    status: 200,
+    description: '로그아웃 성공. 브라우저 쿠키(refreshToken)가 삭제됩니다.',
+    type: CoreOutput,
+  })
+  @ApiResponse({
+    status: 401,
+    description: '인증되지 않은 사용자 (토큰 없거나 만료됨)',
+  })
   @Post('sign-out')
   @HttpCode(HttpStatus.OK)
   async signOut(
-    @CurrentUser() user: User, // 현재 로그인한 유저 정보
+    @CurrentUser() user: User,
     @Request() req: any,
     @Response({ passthrough: true }) res: ExpressResponse,
   ) {
-    // 헤더에서 Access Token 추출 (블랙리스트 등록용)
     const accessToken = ExtractJwt.fromAuthHeaderAsBearerToken()(req) ?? '';
-
-    // 클라이언트의 쿠키 삭제
     this.clearRefreshTokenCookie(res);
-
-    // 서버 로직 수행 (Redis에서 Refresh Token 삭제 및 Access Token 블랙리스트 처리)
     return this.authService.signOut(user.id, accessToken);
   }
 
@@ -138,7 +143,7 @@ export class AuthController {
     return { accessToken: tokenPair.accessToken };
   }
 
-  @ApiOperation({ summary: '이메일 인증 처리' })
+  @ApiExcludeEndpoint()
   @Public() // 로그인 없이 접근 가능해야 함
   @Get('verify-email')
   @HttpCode(HttpStatus.OK)

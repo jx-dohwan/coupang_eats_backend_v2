@@ -31,7 +31,7 @@ export class EmailService implements INotificationService {
     const htmlBody = `
       <div style="padding: 20px; border: 1px solid #ddd;">
         <h3>이메일 인증</h3>
-        <p>아래 링크를 클릭하여 인증을 완료하세요 (5분 유효)</p>
+        <p>아래 링크를 클릭하여 인증을 완료하세요</p>
         <a href="${verifyUrl}" style="padding: 10px; background: blue; color: white;">인증하기</a>
         <br>
         <small>${verifyUrl}</small>
