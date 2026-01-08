@@ -47,8 +47,8 @@ export class AuthController {
   private setRefreshTokenCookie(res: any, refreshToken: string): void {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: !this.isLocal, // true: 자바스크립트로 접근 불가 (XSS 방지)
-      secure: !this.isLocal, // true: HTTPS에서만 전송 (로컬은 false)
-      sameSite: this.isLocal ? 'none' : 'strict', // CSRF 공격 방지 설정
+      secure: false, //!this.isLocal, // true: HTTPS에서만 전송 (로컬은 false)
+      sameSite: 'lax',//this.isLocal ? 'none' : 'strict', // CSRF 공격 방지 설정
       maxAge: 7 * 24 * 60 * 60 * 1000, // 쿠키 유효기간 7일
     });
   }
@@ -57,8 +57,8 @@ export class AuthController {
   private clearRefreshTokenCookie(res: any): void {
     res.clearCookie('refreshToken', {
       httpOnly: !this.isLocal,
-      secure: !this.isLocal,
-      sameSite: this.isLocal ? 'none' : 'strict',
+      secure: false,// !this.isLocal,
+      sameSite: 'lax',// this.isLocal ? 'none' : 'strict',
     });
   }
 
