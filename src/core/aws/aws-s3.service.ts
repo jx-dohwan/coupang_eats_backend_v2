@@ -69,6 +69,22 @@ export class AwsS3Service {
   }
 
   /**
+   * 다중 업로드 (병렬처리)
+   */
+  async uploadImages(
+    folder: string,
+    files: Array<Express.Multer.File>,
+  ): Promise<string[]> {
+    // 1. 각 파일마다 uploadImage 함수를 실행하는 Promise 배열을 만든다.
+    const uploadPromises = files.map((file) => this.uploadImage(folder, file));
+
+    // 2. Promise.all을 사용하여 모든 업로드가 끝날 때까지 기다리며, 하나라도 실패하면 에러, 모두 성공해야 URL 배열이 반환된다.
+    const urls = await Promise.all(uploadPromises);
+
+    return urls;
+  }
+
+  /**
    * UUID를 사용하여 고유한 파일명을 생성합니다.
    * 충돌 방지 및 보안을 위해 원본 파일명 대신 랜덤 문자열을 사용합니다.
    */
