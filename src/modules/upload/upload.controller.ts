@@ -103,6 +103,7 @@ export class UploadController {
             format: 'binary',
           },
           description: '이미지 파일들 (최대 5장)',
+          maxItems: 5,
         },
         folder: {
           type: 'string',
