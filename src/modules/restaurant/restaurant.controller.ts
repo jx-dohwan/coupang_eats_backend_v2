@@ -7,11 +7,8 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
 import { AccessTokenGuard } from '../../core/guard/accessToken.guard';
 import { RolesGuard } from '../../core/guard/roles.guard';
@@ -29,16 +26,12 @@ import {
 } from '../../core/decorator/swagger.decorator';
 import { RestaurantEntity } from '../../entities/restaurant/restaurant.entity';
 import { RestaurantPaginationResponse } from './dto/restaurant-pagination.response';
-import { AwsS3Service } from '../../core/aws/aws-s3.service';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 @ApiTags('Restaurant (식당)')
 @Controller('restaurants')
 export class RestaurantController {
-  constructor(
-    private readonly restaurantService: RestaurantService,
-    private readonly awsS3Service: AwsS3Service,
-  ) {}
+  constructor(private readonly restaurantService: RestaurantService) {}
 
   /**
    * 식당 생성 (점주 전용)
@@ -49,17 +42,10 @@ export class RestaurantController {
   @Post()
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.OWNER)
-  @UseInterceptors(FileInterceptor('image'))
   async createRestaurant(
     @CurrentUser() owner: User,
     @Body() createRestaurantDto: CreateRestaurantDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (file) {
-      const uploadUrl = await this.awsS3Service.uploadImage('restaurant', file);
-      createRestaurantDto.coverImg = uploadUrl; // DTO에 URL 주입
-    }
-
     return this.restaurantService.createRestaurant(owner, createRestaurantDto);
   }
 
@@ -71,19 +57,11 @@ export class RestaurantController {
   @Patch(':id')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.OWNER)
-  @UseInterceptors(FileInterceptor('image'))
   async updateRestaurant(
     @CurrentUser() owner: User,
     @Param('id', ParseUUIDPipe) restaurantId: string,
     @Body() updateRestaurantDto: UpdateRestaurantDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    // 1. 이미지 파일이 있으면 S3 업로드 후 URL 교체
-    if (file) {
-      const uploadUrl = await this.awsS3Service.uploadImage('restaurant', file);
-      updateRestaurantDto.coverImg = uploadUrl;
-    }
-
     // 2. 서비스 호출
     return this.restaurantService.updateRestaurant(
       owner,

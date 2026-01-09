@@ -46,7 +46,7 @@ export class ReviewService {
     // 3. 중복 리뷰 방지 (1주문 1리뷰)
     // ReviewEntity에 orderId 컬럼이 있으므로 직접 조회 가능
     const existingReview = await this.reviewRepository.findOneByFilters({
-      orderId: dto.orderId, 
+      orderId: dto.orderId,
     });
 
     if (existingReview) {
@@ -101,6 +101,6 @@ export class ReviewService {
     // Soft Delete
     await this.reviewRepository.softDelete(reviewId);
 
-    return { success: true };
+    return { ok: true };
   }
 }

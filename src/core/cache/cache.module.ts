@@ -44,11 +44,13 @@ const redisConnect: FactoryProvider = {
     // 3. 디버깅용 로그 (배포 후 CloudWatch에서 주소 확인용)
     console.log(`[Redis Config] Connecting to: ${host}:${port}`);
 
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+
     // 4. Redis 클라이언트 생성
     const client = new Redis({
       host: host,
       port: port, // 이제 확실한 number 타입입니다.
-      tls: {},
+      ...(isLocal ? {} : { tls: {} }), // 로컬이 아닐 때만 tls 옵션 적용 (AWS ElastiCache 등 사용 시 필요)
       retryStrategy: (times) => Math.min(times * 50, 2000), // 재연결 전략
     });
 
