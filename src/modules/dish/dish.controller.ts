@@ -6,11 +6,8 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { DishService } from './dish.service';
 import { AccessTokenGuard } from '../../core/guard/accessToken.guard';
 import { RolesGuard } from '../../core/guard/roles.guard';
@@ -26,16 +23,12 @@ import {
 } from '../../core/decorator/swagger.decorator';
 import { DishEntity } from '../../entities/dish/dish.entity';
 import { CoreOutput } from '../../common/dto/core.output';
-import { AwsS3Service } from '../../core/aws/aws-s3.service';
 import { UpdateDishDto } from './dto/update-dish.dto';
 
 @ApiTags('Dish (메뉴)')
 @Controller()
 export class DishController {
-  constructor(
-    private readonly dishService: DishService,
-    private readonly awsS3Service: AwsS3Service,
-  ) {}
+  constructor(private readonly dishService: DishService) {}
 
   /**
    * 메뉴 생성
@@ -46,17 +39,11 @@ export class DishController {
   @Post('restaurants/:restaurantId/dishes')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.OWNER)
-  @UseInterceptors(FileInterceptor('image'))
   async createDish(
     @CurrentUser() owner: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Body() createDishDto: CreateDishDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (file) {
-      const uploadUrl = await this.awsS3Service.uploadImage('dish', file);
-      createDishDto.photo = uploadUrl;
-    }
     return this.dishService.createDish(owner, restaurantId, createDishDto);
   }
 
@@ -68,20 +55,12 @@ export class DishController {
   @Patch('restaurants/:restaurantId/dishes/:id')
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles(Role.OWNER)
-  @UseInterceptors(FileInterceptor('image'))
   async updateDish(
     @CurrentUser() owner: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Param('id', ParseUUIDPipe) dishId: string,
     @Body() updateDishDto: UpdateDishDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    // 1. 새 이미지가 업로드되었다면 S3에 올리고 URL 교체
-    if (file) {
-      const uploadUrl = await this.awsS3Service.uploadImage('dish', file);
-      updateDishDto.photo = uploadUrl;
-    }
-
     // 2. 서비스 호출
     return this.dishService.updateDish(
       owner,
