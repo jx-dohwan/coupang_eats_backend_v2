@@ -1,4 +1,4 @@
-name: Deploy to Amazon ECS
+name: Deploy to Amazon ECS (Terraform Managed)
 
 on:
   push:
@@ -6,11 +6,10 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: coupang-eats-backend
-  ECS_SERVICE: coupang-eats-service
-  ECS_CLUSTER: coupang-eats-cluster
-  ECS_TASK_DEFINITION: ./task-definition.json
-  CONTAINER_NAME: nestjs-container
+  # ⚠️ 중요: 아래 이름들을 테라폼에서 지정한 이름(var.project_name-var.environment-...)으로 정확히 맞춰주세요!
+  ECR_REPOSITORY: coupang-eats-dev-repo 
+  ECS_CLUSTER: coupang-eats-dev-cluster
+  ECS_SERVICE: coupang-eats-dev-service
 
 permissions:
   id-token: write
@@ -26,6 +25,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
+          # 기존에 잘 설정해두신 OIDC 역할 ARN 그대로 사용
           role-to-assume: arn:aws:iam::441866789243:role/github-actions-ecs-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
@@ -34,41 +34,20 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push image to Amazon ECR
-        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          # 테라폼의 image 속성과 맞추기 위해 latest 태그 사용
+          IMAGE_TAG: latest 
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
-          # ⭐ 깃허브 금고에서 값을 꺼내 배포 직전에 주입합니다.
-          environment-variables: |
-            AWS_REGION=${{ env.AWS_REGION }}
-            DB_TYPE=${{ secrets.DB_TYPE }}
-            DB_HOST=${{ secrets.DB_HOST }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            DB_USER_NAME=${{ secrets.DB_USER_NAME }}
-            REDIS_HOST=${{ secrets.REDIS_HOST }}
-            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-            JWT_ACCESS_EXPIRATION=${{ secrets.JWT_ACCESS_EXPIRATION }}
-            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-            JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
-            AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
-            AWS_SES_SENDER_EMAIL=${{ secrets.AWS_SES_SENDER_EMAIL }}
-            BASE_URL=${{ secrets.BASE_URL }}
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      # ⭐ 핵심 변경 사항: 기존의 render-task-def 과정을 없애고, AWS CLI로 강제 재시작만 지시합니다.
+      # 테라폼이 뼈대를 꽉 잡고 있으므로, ECS는 방금 ECR에 푸시된 latest 이미지를 다운받아 새 컨테이너를 띄웁니다.
+      - name: Force ECS Service deployment
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
