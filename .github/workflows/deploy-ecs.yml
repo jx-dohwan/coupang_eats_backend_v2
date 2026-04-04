@@ -26,7 +26,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           # 기존에 잘 설정해두신 OIDC 역할 ARN 그대로 사용
-          role-to-assume: arn:aws:iam::441866789243:role/github-actions-ecs-deploy-role
+          role-to-assume: arn:aws:iam::160180440710:role/github-actions-ecs-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
