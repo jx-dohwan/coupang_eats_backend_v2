@@ -16,6 +16,7 @@ export function ApiDocOk(
 ) {
   return applyDecorators(
     ApiOperation({ summary }),
+    ApiBearerAuth('access-token'),
     ApiOkResponse({
       description: '요청 성공',
       // 배열이 들어오면 그대로 넘겨주고, 없으면 기본값 CoreOutput
