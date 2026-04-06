@@ -17,11 +17,12 @@ import { CurrentUser } from '../../core/decorator/currentUser.decorator';
 import { User } from '../../entities/user/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { EditOrderDto } from './dto/edit-order.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiDocCreated, ApiDocOk } from '../../core/decorator/swagger.decorator';
 import { OrderEntity } from '../../entities/order/order.entity';
 
 @ApiTags('Order (주문)')
+@ApiBearerAuth()
 @Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
