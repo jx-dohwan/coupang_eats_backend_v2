@@ -1,5 +1,3 @@
-# k8s/nestjs-app.yaml
-
 # =========================================================================
 # 1. ServiceAccount: 파드에게 AWS 자원(S3, SES 등)에 접근할 신분증을 발급합니다.
 # =========================================================================
@@ -9,7 +7,7 @@ metadata:
   name: coupang-eats-nestjs-sa
   namespace: default
   annotations:
-    # 💡 [주의] 테라폼 apply 최종 성공 시 나온 'nestjs_pod_role_arn' 값을 여기에 정확히 박아넣으세요!
+    # 💡 내 실제 AWS 계정(441866789243) 신분증 역할 매핑 완료
     eks.amazonaws.com/role-arn: "arn:aws:iam::441866789243:role/coupang-eats-dev-nestjs-pod-role"
 ---
 # =========================================================================
@@ -33,7 +31,7 @@ spec:
       serviceAccountName: coupang-eats-nestjs-sa # 위에서 만든 IRSA 신분증 부착
       containers:
         - name: nestjs-app
-          # 💡 현재 계정의 ECR 레지스트리 주소 자동 동기화
+          # 💡 새로 만든 ECR 컨테이너 창고 주소 지정 완료
           image: 441866789243.dkr.ecr.ap-northeast-2.amazonaws.com/coupang-eats-dev-repo:latest
           imagePullPolicy: Always
           ports:
@@ -43,12 +41,12 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
-            # 💡 [주의] 테라폼 apply 최종 완료 시 출력된 aurora_writer_endpoint 주소를 입력하세요.
+            # 💡 [수정 완공] 테라폼 apply 결과로 나온 진짜 Aurora DB 쓰기 엔드포인트를 입력했습니다.
             - name: DATABASE_HOST
-              value: "coupang-eats-dev-aurora-cluster.cluster-xxxx.ap-northeast-2.rds.amazonaws.com"
-            # 💡 [주의] 테라폼 apply 최종 완료 시 출력된 redis_replication_group_endpoint 주소를 입력하세요.
+              value: "coupang-eats-dev-aurora-cluster.cluster-c56484cqmwo2.ap-northeast-2.rds.amazonaws.com"
+            # 💡 [수정 완공] 테라폼 apply 결과로 나온 진짜 고가용성 Redis 엔드포인트를 입력했습니다.
             - name: REDIS_HOST
-              value: "coupang-eats-dev-redis.xxxx.ng.0001.apne2.cache.amazonaws.com"
+              value: "master.coupang-eats-dev-redis.vzfwhp.apn2.cache.amazonaws.com"
             - name: DATABASE_PORT
               value: "3306"
             - name: REDIS_PORT
