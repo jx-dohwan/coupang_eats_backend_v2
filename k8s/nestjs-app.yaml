@@ -35,7 +35,7 @@ spec:
           ports:
             - containerPort: 3000
           
-          # 🔥 소스코드가 어떤 환경변수 명칭(Key)을 요구하든 무조건 통과하는 무적의 환경변수 가방
+          # 🔥 소스코드가 어떤 변수명 조합을 요구하든 무조건 걸려들게 만드는 환경변수 백화점
           env:
             - name: NODE_ENV
               value: "production"
@@ -50,7 +50,11 @@ spec:
             - name: DB_PORT
               value: "3306"
 
-            # [B] 데이터베이스 인증 정보 (User: undefined 탈출을 위한 융단폭격 매핑)
+            # [B] 데이터베이스 인증 유저명 (🎯 범인 체포 완료: DB_USER_NAME 추가)
+            - name: DB_USER_NAME
+              value: "user0"
+            - name: DATABASE_USER_NAME
+              value: "user0"
             - name: DB_USER
               value: "user0"
             - name: DB_USERNAME
@@ -60,7 +64,7 @@ spec:
             - name: DATABASE_USERNAME
               value: "user0"
 
-            # ⚠️ 아래 "실제_비밀번호" 양쪽 구역에 실제 테라폼 DB 마스터 암호를 적어주세요!
+            # ⚠️ 아래 두 곳에 실제 테라폼 DB 마스터 암호를 입력하세요!
             - name: DB_PASSWORD
               value: "실제_비밀번호_입력" 
             - name: DATABASE_PASSWORD
