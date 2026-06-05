@@ -61,7 +61,7 @@ metadata:
   name: coupang-eats-nestjs-service
   namespace: default
 spec:
-  type: ClusterIP # 내부 방화벽망 규칙을 따르는 고정 내부 IP 개설
+  type: LoadBalancer # 내부 방화벽망 규칙을 따르는 고정 내부 IP 개설
   ports:
     - port: 80
       targetPort: 3000
