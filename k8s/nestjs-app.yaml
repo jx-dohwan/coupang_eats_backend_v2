@@ -35,12 +35,12 @@ spec:
           ports:
             - containerPort: 3000
           
-          # 🔥 NestJS 소스코드가 어떤 환경변수 명칭을 요구하든 통과하도록 이중 매핑 가동
+          # 🔥 소스코드가 어떤 환경변수 명칭(Key)을 요구하든 무조건 통과하는 무적의 환경변수 가방
           env:
             - name: NODE_ENV
               value: "production"
 
-            # [A] 데이터베이스 주소 및 포트 동기화
+            # [A] 데이터베이스 주소 및 포트 동기화 (검증 완료)
             - name: DATABASE_HOST
               value: "coupang-eats-dev-aurora-cluster.cluster-c56484cqmwo2.ap-northeast-2.rds.amazonaws.com"
             - name: DB_HOST
@@ -50,21 +50,31 @@ spec:
             - name: DB_PORT
               value: "3306"
 
-            # [B] 데이터베이스 인증 정보 (undefined 탈출 핵심 구역)
+            # [B] 데이터베이스 인증 정보 (User: undefined 탈출을 위한 융단폭격 매핑)
+            - name: DB_USER
+              value: "user0"
             - name: DB_USERNAME
               value: "user0"
             - name: DATABASE_USER
               value: "user0"
+            - name: DATABASE_USERNAME
+              value: "user0"
+
+            # ⚠️ 아래 "실제_비밀번호" 양쪽 구역에 실제 테라폼 DB 마스터 암호를 적어주세요!
             - name: DB_PASSWORD
-              value: "실제_테라폼에_설정한_DB_비밀번호를_여기에_입력" # 👈 여기만 실제 암호로 변경해 주세요!
+              value: "실제_비밀번호_입력" 
             - name: DATABASE_PASSWORD
-              value: "실제_테라폼에_설정한_DB_비밀번호를_여기에_입력" # 👈 여기만 실제 암호로 변경해 주세요!
+              value: "실제_비밀번호_입력" 
+
+            # [C] 데이터베이스 스키마 이름 매핑
             - name: DB_NAME
               value: "coupang_eats"
             - name: DATABASE_NAME
               value: "coupang_eats"
+            - name: DB_DATABASE
+              value: "coupang_eats"
 
-            # [C] Redis 캐시 정보 동기화
+            # [D] Redis 캐시 정보 동기화
             - name: REDIS_HOST
               value: "master.coupang-eats-dev-redis.vzfwhp.apn2.cache.amazonaws.com"
             - name: REDIS_PORT
