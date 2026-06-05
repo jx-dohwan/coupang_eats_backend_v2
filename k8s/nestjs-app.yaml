@@ -1,0 +1,72 @@
+# k8s/nestjs-app.yaml
+
+# =========================================================================
+# 1. ServiceAccount: 파드에게 AWS 자원(S3, SES 등)에 접근할 신분증을 발급합니다.
+# =========================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coupang-eats-nestjs-sa
+  namespace: default
+  annotations:
+    # 💡 [주의] 테라폼 apply 최종 성공 시 나온 'nestjs_pod_role_arn' 값을 여기에 정확히 박아넣으세요!
+    eks.amazonaws.com/role-arn: "arn:aws:iam::441866789243:role/coupang-eats-dev-nestjs-pod-role"
+---
+# =========================================================================
+# 2. Deployment: NestJS 컨테이너 파드들을 관리하고 무중단 배포를 제어합니다.
+# =========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coupang-eats-nestjs-deployment
+  namespace: default
+spec:
+  replicas: 2 # 고가용성을 위해 2개의 가용영역에 파드를 상시 2개 유지
+  selector:
+    matchLabels:
+      app: coupang-eats-nestjs
+  template:
+    metadata:
+      labels:
+        app: coupang-eats-nestjs
+    spec:
+      serviceAccountName: coupang-eats-nestjs-sa # 위에서 만든 IRSA 신분증 부착
+      containers:
+        - name: nestjs-app
+          # 💡 현재 계정의 ECR 레지스트리 주소 자동 동기화
+          image: 441866789243.dkr.ecr.ap-northeast-2.amazonaws.com/coupang-eats-dev-repo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          
+          # 💡 NestJS 소스코드가 바라볼 환경변수 인젝션 가방
+          env:
+            - name: NODE_ENV
+              value: "production"
+            # 💡 [주의] 테라폼 apply 최종 완료 시 출력된 aurora_writer_endpoint 주소를 입력하세요.
+            - name: DATABASE_HOST
+              value: "coupang-eats-dev-aurora-cluster.cluster-xxxx.ap-northeast-2.rds.amazonaws.com"
+            # 💡 [주의] 테라폼 apply 최종 완료 시 출력된 redis_replication_group_endpoint 주소를 입력하세요.
+            - name: REDIS_HOST
+              value: "coupang-eats-dev-redis.xxxx.ng.0001.apne2.cache.amazonaws.com"
+            - name: DATABASE_PORT
+              value: "3306"
+            - name: REDIS_PORT
+              value: "6379"
+---
+# =========================================================================
+# 3. Service: 파드 무리 앞단에 가상 고정 IP를 달아 로드밸런서와 연결해 줍니다.
+# =========================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: coupang-eats-nestjs-service
+  namespace: default
+spec:
+  type: ClusterIP # 내부 방화벽망 규칙을 따르는 고정 내부 IP 개설
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: coupang-eats-nestjs
