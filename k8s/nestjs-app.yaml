@@ -7,7 +7,6 @@ metadata:
   name: coupang-eats-nestjs-sa
   namespace: default
   annotations:
-    # 💡 내 실제 AWS 계정(441866789243) 신분증 역할 매핑 완료
     eks.amazonaws.com/role-arn: "arn:aws:iam::441866789243:role/coupang-eats-dev-nestjs-pod-role"
 ---
 # =========================================================================
@@ -19,7 +18,7 @@ metadata:
   name: coupang-eats-nestjs-deployment
   namespace: default
 spec:
-  replicas: 2 # 고가용성을 위해 2개의 가용영역에 파드를 상시 2개 유지
+  replicas: 2
   selector:
     matchLabels:
       app: coupang-eats-nestjs
@@ -28,32 +27,51 @@ spec:
       labels:
         app: coupang-eats-nestjs
     spec:
-      serviceAccountName: coupang-eats-nestjs-sa # 위에서 만든 IRSA 신분증 부착
+      serviceAccountName: coupang-eats-nestjs-sa
       containers:
         - name: nestjs-app
-          # 💡 새로 만든 ECR 컨테이너 창고 주소 지정 완료
           image: 441866789243.dkr.ecr.ap-northeast-2.amazonaws.com/coupang-eats-dev-repo:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
           
-          # 💡 NestJS 소스코드가 바라볼 환경변수 인젝션 가방
+          # 🔥 NestJS 소스코드가 어떤 환경변수 명칭을 요구하든 통과하도록 이중 매핑 가동
           env:
             - name: NODE_ENV
               value: "production"
-            # 💡 [수정 완공] 테라폼 apply 결과로 나온 진짜 Aurora DB 쓰기 엔드포인트를 입력했습니다.
+
+            # [A] 데이터베이스 주소 및 포트 동기화
             - name: DATABASE_HOST
               value: "coupang-eats-dev-aurora-cluster.cluster-c56484cqmwo2.ap-northeast-2.rds.amazonaws.com"
-            # 💡 [수정 완공] 테라폼 apply 결과로 나온 진짜 고가용성 Redis 엔드포인트를 입력했습니다.
-            - name: REDIS_HOST
-              value: "master.coupang-eats-dev-redis.vzfwhp.apn2.cache.amazonaws.com"
+            - name: DB_HOST
+              value: "coupang-eats-dev-aurora-cluster.cluster-c56484cqmwo2.ap-northeast-2.rds.amazonaws.com"
             - name: DATABASE_PORT
               value: "3306"
+            - name: DB_PORT
+              value: "3306"
+
+            # [B] 데이터베이스 인증 정보 (undefined 탈출 핵심 구역)
+            - name: DB_USERNAME
+              value: "user0"
+            - name: DATABASE_USER
+              value: "user0"
+            - name: DB_PASSWORD
+              value: "실제_테라폼에_설정한_DB_비밀번호를_여기에_입력" # 👈 여기만 실제 암호로 변경해 주세요!
+            - name: DATABASE_PASSWORD
+              value: "실제_테라폼에_설정한_DB_비밀번호를_여기에_입력" # 👈 여기만 실제 암호로 변경해 주세요!
+            - name: DB_NAME
+              value: "coupang_eats"
+            - name: DATABASE_NAME
+              value: "coupang_eats"
+
+            # [C] Redis 캐시 정보 동기화
+            - name: REDIS_HOST
+              value: "master.coupang-eats-dev-redis.vzfwhp.apn2.cache.amazonaws.com"
             - name: REDIS_PORT
               value: "6379"
 ---
 # =========================================================================
-# 3. Service: 파드 무리 앞단에 가상 고정 IP를 달아 로드밸런서와 연결해 줍니다.
+# 3. Service: 외부 인터넷에서 접속할 수 있는 공인 로드밸런서 문을 개통합니다.
 # =========================================================================
 apiVersion: v1
 kind: Service
@@ -61,7 +79,7 @@ metadata:
   name: coupang-eats-nestjs-service
   namespace: default
 spec:
-  type: LoadBalancer # 내부 방화벽망 규칙을 따르는 고정 내부 IP 개설
+  type: LoadBalancer
   ports:
     - port: 80
       targetPort: 3000
