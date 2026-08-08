@@ -38,28 +38,29 @@ import { ApiDocOk, ApiDocPublicCreated } from '../../core/decorator/swagger.deco
 @Controller('auth')
 export class AuthController {
   private readonly isLocal: boolean;
+  private readonly cookieSecure: boolean;
 
   constructor(private readonly authService: AuthService) {
-    // 로컬 개발 환경인지 확인 (쿠키 보안 옵션인 Secure, SameSite 설정을 위함)
     this.isLocal = process.env.NODE_ENV === Env.local;
+    const baseUrl = process.env.BASE_URL || '';
+    // Secure 쿠키는 HTTPS(BASE_URL)일 때만. HTTP ALB(dev, ACM 미적용)에서는 false 필수
+    this.cookieSecure = baseUrl.startsWith('https://');
   }
 
-  // [Helper] Refresh Token을 HttpOnly 쿠키에 저장하는 메서드
   private setRefreshTokenCookie(res: any, refreshToken: string): void {
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: !this.isLocal, // true: 자바스크립트로 접근 불가 (XSS 방지)
-      secure: false, //!this.isLocal, // true: HTTPS에서만 전송 (로컬은 false)
-      sameSite: 'lax', //this.isLocal ? 'none' : 'strict', // CSRF 공격 방지 설정
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 쿠키 유효기간 7일
+      httpOnly: !this.isLocal,
+      secure: this.cookieSecure,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 
-  // [Helper] 로그아웃 시 클라이언트의 Refresh Token 쿠키를 삭제하는 메서드
   private clearRefreshTokenCookie(res: any): void {
     res.clearCookie('refreshToken', {
       httpOnly: !this.isLocal,
-      secure: false, // !this.isLocal,
-      sameSite: 'lax', // this.isLocal ? 'none' : 'strict',
+      secure: this.cookieSecure,
+      sameSite: 'lax',
     });
   }
 

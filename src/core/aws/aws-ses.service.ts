@@ -14,14 +14,11 @@ export class AwsSesService {
 
     this.sesClient = new SESClient({
       region: awsConfig.REGION,
-      // 🚨 [근본 해결 1] 타임아웃 강제 지정 (504 에러 방지용)
       requestHandler: new NodeHttpHandler({
-        connectionTimeout: 3000, 
+        connectionTimeout: 3000,
         socketTimeout: 5000,
       }),
-      // 🚨 [근본 해결 2] 찾으시던 엔드포인트 주소입니다. 
-      // 변수 대신 직접 문자열로 넣었습니다.
-      endpoint: "https://email.ap-northeast-2.amazonaws.com", 
+      endpoint: `https://email.${awsConfig.REGION}.amazonaws.com`,
     });
   }
 

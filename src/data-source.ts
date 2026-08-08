@@ -2,8 +2,13 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
 
-dotenv.config({ path: path.join(__dirname, '../dotenv/.env.local') });
+// 로컬: dotenv/.env.local, ECS: Task Definition으로 주입된 process.env 우선
+const localEnvPath = path.join(__dirname, '../dotenv/.env.local');
+if (fs.existsSync(localEnvPath)) {
+  dotenv.config({ path: localEnvPath });
+}
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -18,9 +23,3 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   connectorPackage: 'mysql2',
 });
-
-// 값이 잘 들어오는지 다시 한 번 확인합니다.
-console.log('--- DB 접속 정보 확인 ---');
-console.log('Path:', path.join(__dirname, '../dotenv/.env.local'));
-console.log('Host:', process.env.DB_HOST);
-console.log('User:', process.env.DB_USER_NAME);

@@ -37,6 +37,8 @@ export interface AwsConfig {
   REGION: string;
   S3_BUCKET_NAME: string;
   SES_SENDER_EMAIL: string;
+  /** CloudFront URL (https://xxxx.cloudfront.net). 없으면 S3 직접 URL fallback */
+  CDN_URL: string;
 }
 
 export interface Configurations {

@@ -16,7 +16,7 @@ export const configurations = (): Configurations => {
       DB_USER_NAME: process.env.DB_USER_NAME || '',
       DB_PASSWORD: process.env.DB_PASSWORD || '',
       DB_DATABASE: process.env.DB_DATABASE || '',
-      DB_PORT: process.env.DB_PORT || 5432,
+      DB_PORT: process.env.DB_PORT || 3306,
     },
     REDIS: {
       HOST: process.env.REDIS_HOST || '',
@@ -32,6 +32,7 @@ export const configurations = (): Configurations => {
       REGION: process.env.AWS_REGION || 'ap-northeast-2',
       S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME || '',
       SES_SENDER_EMAIL: process.env.AWS_SES_SENDER_EMAIL || '',
+      CDN_URL: (process.env.AWS_CDN_URL || '').replace(/\/$/, ''),
     },
   };
 };
